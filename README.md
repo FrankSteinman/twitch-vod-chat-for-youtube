@@ -6,7 +6,7 @@ A Chrome extension that allows you to display Twitch VOD chats on YouTube.
 
 ## Features
 
-<img width="431" height="565" alt="toolbar ext" src="https://github.com/user-attachments/assets/eb7b3bd2-ad8d-41fd-88fb-96e9ff2abe4e" />
+<img width="435" height="632" alt="toolbar ext" src="https://github.com/user-attachments/assets/745625b0-8908-4003-a1e6-56aed5b1591a" />
 
 <img width="471" height="294" alt="overlay" src="https://github.com/user-attachments/assets/6fa941aa-34d3-454c-b891-999cc5f5fe27" />
 
@@ -18,7 +18,7 @@ A Chrome extension that allows you to display Twitch VOD chats on YouTube.
 - Support for large chat JSON files
 - Clean chat mode for a minimal look (can move the chat in clean chat mode by clicking near the top of the chat)
 - Show or hide timestamps
-- Split messages for easier reading
+- Split messages for easier reading with color picker
 - Adjustable chat opacity
 - Resizable chat size by dragging on the sides
 - Hide the scrollbar while keeping the chat scrollable
@@ -66,6 +66,6 @@ See `PRIVACY.md` for more information.
 
 ## Version
 
-**1.01**
+**1.02**
 
 This is a casual project. Updates may be made occasionally when something needs fixing or stops working. All of this was done with the help of ChatGPT.
