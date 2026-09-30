@@ -3,7 +3,7 @@
   --tcs-panel-bg: rgba(24,24,27,var(--tcs-opacity));
   --tcs-control-bg: rgba(31,31,35,var(--tcs-opacity));
   position:fixed;z-index:2147483646;top:80px;right:18px;width:400px;min-width:300px;max-width:min(900px,calc(100vw - 24px));height:680px;min-height:300px;max-height:calc(100vh - 100px);
-  background:var(--tcs-panel-bg);color:#efeff1;border:1px solid rgba(255,255,255,.12);border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.55);font:14px/1.35 "Segoe UI",Arial,sans-serif;display:flex;flex-direction:column;overflow:hidden;
+  background:var(--tcs-panel-bg);color:#efeff1;border:0;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.55);font:14px/1.35 "Segoe UI",Arial,sans-serif;display:flex;flex-direction:column;overflow:hidden;
 }
 #tcs-overlay.tcs-hidden{display:none}
 #tcs-overlay.tcs-settings-collapsed #tcs-head{border-bottom:0}
@@ -49,7 +49,6 @@
 #tcs-overlay.tcs-hide-scrollbar #tcs-chat{scrollbar-width:none;}
 #tcs-overlay.tcs-hide-scrollbar #tcs-chat::-webkit-scrollbar{width:0;height:0;display:none;}
 .tcs-msg{margin:0 0 2px;padding:4px 5px;border-radius:3px;word-break:break-word;line-height:1.42;transition:none}
-.tcs-msg.tcs-alt{background:rgba(86,62,118,.28)}
 #tcs-overlay:not(.tcs-purple-messages) .tcs-msg.tcs-alt{background:transparent}
 .tcs-time{color:#77777f;font-size:10px;margin-right:4px;cursor:pointer}
 .tcs-hide-timestamps .tcs-time{display:none}

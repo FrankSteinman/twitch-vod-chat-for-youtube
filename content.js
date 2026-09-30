@@ -188,7 +188,7 @@
       <div class="tcs-resize tcs-resize-tl" data-edge="tl"></div>
       <div class="tcs-resize tcs-resize-br" data-edge="br"></div>
       <div class="tcs-resize tcs-resize-bl" data-edge="bl"></div>`;
-    overlay.dataset.tcsVersion = '1.0';
+    overlay.dataset.tcsVersion = '1.0.1';
     document.body.appendChild(overlay);
 
     $('tcs-clear').addEventListener('click', clearChat);
@@ -327,10 +327,26 @@
   }
 
   function applyOpacity() {
-    const opacity = STATE.opacity / 100;
+    const opacity = Math.max(0.25, Math.min(1, STATE.opacity / 100));
     const overlay = $('tcs-overlay');
     if (!overlay) return;
-    overlay.style.setProperty('--tcs-opacity', opacity.toFixed(2));
+
+    // ThinkPad diagnostic: bypass the CSS custom property and set the
+    // RGBA backgrounds directly. This tests whether the issue is related
+    // to Chrome rendering var(--tcs-opacity) inside rgba().
+    const alpha = opacity.toFixed(2);
+    overlay.style.backgroundColor = `rgba(24,24,27,${alpha})`;
+    const head = $('tcs-head');
+    const controls = $('tcs-controls');
+    const chat = $('tcs-chat');
+    if (head) head.style.backgroundColor = `rgba(31,31,35,${alpha})`;
+    if (controls) controls.style.backgroundColor = `rgba(31,31,35,${alpha})`;
+    if (chat) chat.style.backgroundColor = `rgba(24,24,27,${alpha})`;
+
+    // Keep the alternating purple background tied to the same opacity
+    // setting, while leaving message text/emotes fully opaque.
+    applyPurpleMessageOpacity(overlay, opacity);
+
     $('tcs-opacity').value = String(STATE.opacity);
     $('tcs-opacity-value').textContent = tr('opacityValue', {n: STATE.opacity});
   }
@@ -428,6 +444,7 @@
   function setPurpleMessages(enabled, persist = true) {
     STATE.purpleMessages = !!enabled;
     applyDisplayPrefs(true);
+    applyPurpleMessageOpacity($('tcs-overlay'));
     if (persist) chrome.storage.local.set({ purpleMessages: STATE.purpleMessages }).catch(() => {});
   }
 
@@ -938,12 +955,32 @@ function getSavedOffsetFromText(text) {
     }
 
     box.replaceChildren(frag);
+    applyPurpleMessageOpacity($('tcs-overlay'));
     if (wasNearBottom) box.scrollTop = box.scrollHeight;
+  }
+
+  function applyPurpleMessageOpacity(overlay, opacity = Math.max(0.25, Math.min(1, STATE.opacity / 100))) {
+    if (!overlay) return;
+    const enabled = STATE.purpleMessages;
+    const purpleAlpha = (0.28 * opacity).toFixed(3);
+    overlay.querySelectorAll('.tcs-msg').forEach((msg) => {
+      if (msg.classList.contains('tcs-alt') && enabled) {
+        // Use an inline declaration so the dynamically-created chat rows
+        // cannot fall back to the stylesheet's fixed purple opacity.
+        msg.style.setProperty('background-color', `rgba(86,62,118,${purpleAlpha})`, '');
+      } else {
+        // Clearing the inline value makes non-purple rows completely clear.
+        msg.style.removeProperty('background-color');
+      }
+    });
   }
 
   function renderComment(c, alternate = false) {
     const div = document.createElement('div');
-    div.className = `tcs-msg${alternate ? ' tcs-alt' : ''}`;
+    const isAlternate = alternate && STATE.purpleMessages;
+    div.className = `tcs-msg${isAlternate ? ' tcs-alt' : ''}`;
+    // Purple background is applied after the complete chat DOM is created
+    // so toggling/rerendering cannot leave stale inline styles behind.
 
     const tm = document.createElement('span');
     tm.className = 'tcs-time';
