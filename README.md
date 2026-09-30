@@ -16,12 +16,12 @@ A Chrome extension that allows you to display Twitch VOD chats on YouTube.
 - Search the chat for messages and sync points
 - Twitch, BTTV, FFZ, and 7TV emote support
 - Support for large chat JSON files
-- Clean chat mode
+- Clean chat mode for a minimal look (can move the chat in clean chat mode by clicking near the top of the chat)
 - Show or hide timestamps
 - Split messages for easier reading
 - Adjustable chat opacity
+- Resizable chat size by dragging on the sides
 - Hide the scrollbar while keeping the chat scrollable
-- Move the chat in Clean chat mode
 - Settings are available from both the extension toolbar and the chat overlay
 - English, Spanish, French, Japanese, Korean, Portuguese, German, and Italian
 
