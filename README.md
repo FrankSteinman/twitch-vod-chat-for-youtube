@@ -48,7 +48,7 @@ The offset can be saved back to the original JSON file after the chat has been l
 
 ## Getting chat files
 
-For the best results, I recommend using [TwitchDownloader](https://github.com/lay295/TwitchDownloader) to download the VOD chat as a **JSON** file.
+I recommend using [TwitchDownloader](https://github.com/lay295/TwitchDownloader) to download the VOD chat as a **JSON** file.
 
 The downloaded JSON can then be loaded directly into the extension.
 
