@@ -1,0 +1,1627 @@
+(() => {
+  'use strict';
+
+  const STATE = {
+    comments: [],
+    times: [],
+    offset: 0,
+    windowSeconds: 180,
+    opacity: 94,
+    currentVideo: null,
+    lastRenderedTarget: NaN,
+    raf: 0,
+    dragging: false,
+    resizing: false,
+    startX: 0,
+    startY: 0,
+    startLeft: 0,
+    startTop: 0,
+    startWidth: 0,
+    startHeight: 0,
+    searchResults: [],
+    searchQuery: '',
+    searchContextIndex: -1,
+    chatFileName: '',
+    firstChannelId: '',
+    streamParser: null,
+    lastRenderedFrom: -1,
+    lastRenderedTo: -1,
+    chatFileHandle: null,
+    extEmotes: new Map(),
+    extEmoteRegex: null,
+    extEmotesReady: false,
+    extEmotesLoading: false,
+    extChannelId: '',
+    saveTimer: 0,
+    chatVisible: true,
+    showTimestamps: true,
+    purpleMessages: true,
+    hideScrollbar: false,
+    cleanChat: false,
+    language: 'en',
+    popupLoadFileName: '',
+    videoObserverInterval: 0,
+    syncHeartbeat: 0,
+    searchToken: 0
+  };
+
+  const $ = (id) => document.getElementById(id);
+
+  function safeText(value) { return value == null ? '' : String(value); }
+
+  function formatTime(seconds, forceHours = false) {
+    const s = Math.max(0, Math.floor(Number(seconds) || 0));
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    return (h > 0 || forceHours)
+      ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+      : `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  }
+
+  function formatOffset(seconds) {
+    const n = Number(seconds) || 0;
+    const sign = n < 0 ? '-' : '+';
+    return sign + formatTime(Math.abs(n), true);
+  }
+
+  function parseOffset(value) {
+    const raw = safeText(value).trim();
+    if (!raw) return 0;
+    if (/^[+-]?\d+(?:\.\d+)?$/.test(raw)) return Number(raw);
+    const sign = raw.startsWith('-') ? -1 : 1;
+    const clean = raw.replace(/^[+-]/, '');
+    const parts = clean.split(':');
+    if (parts.length < 2 || parts.length > 3 || parts.some(p => !/^\d+(?:\.\d+)?$/.test(p))) return NaN;
+    const nums = parts.map(Number);
+    if (parts.length === 2) return sign * (nums[0] * 60 + nums[1]);
+    return sign * (nums[0] * 3600 + nums[1] * 60 + nums[2]);
+  }
+
+  const I18N = globalThis.TCS_I18N;
+  function currentLang() { return I18N?.get(STATE.language) || I18N?.get('en'); }
+  function tr(key, vars = {}) {
+    const value = currentLang()?.[key];
+    return I18N?.format(value ?? I18N?.get('en')?.[key] ?? key, vars) ?? key;
+  }
+  function trPopupLang() { return currentLang()?.popup || currentLang(); }
+  function localizedNumber(n) {
+    try { return Number(n).toLocaleString(currentLang()?.locale || 'en-US'); } catch { return Number(n).toLocaleString(); }
+  }
+  function setStatus(key, vars) {
+    const el = $('tcs-status');
+    if (el) el.textContent = tr(key, vars);
+  }
+  function applyLanguage() {
+    const L = currentLang();
+    if (!L) return;
+    $('tcs-title').textContent = STATE.chatFileName ? tr('loadedTitle', {file: STATE.chatFileName}) : tr('title');
+    $('tcs-file-btn').textContent = tr('loadChat');
+    $('tcs-file-name').textContent = STATE.chatFileName || tr('noChatFile');
+    $('tcs-clear').textContent = tr('clearChat');
+    $('tcs-save-json').textContent = tr('saveOffset');
+    $('tcs-save-json').title = tr('saveOffsetTitle');
+    $('tcs-offset-label').textContent = tr('offset');
+    $('tcs-offset').title = tr('offsetInputTitle');
+    $('tcs-offset-down').title = tr('decreaseOffset');
+    $('tcs-offset-up').title = tr('increaseOffset');
+    $('tcs-offset-apply').textContent = tr('apply');
+    $('tcs-opacity-label').textContent = tr('opacity');
+    $('tcs-show-timestamps-label').textContent = tr('showTimestamps');
+    $('tcs-clean-drag-handle').title = tr('moveChat');
+    $('tcs-clean-drag-handle').setAttribute('aria-label', tr('moveChat'));
+    $('tcs-purple-messages-label').textContent = tr('purpleMessages');
+    $('tcs-hide-scrollbar-label').textContent = tr('hideScrollbar');
+    $('tcs-opacity-value').textContent = tr('opacityValue', {n: STATE.opacity});
+    $('tcs-search').placeholder = tr('searchPlaceholder');
+    $('tcs-search-btn').textContent = tr('search');
+    $('tcs-search-clear').textContent = tr('clear');
+    const collapsed = $('tcs-overlay').classList.contains('tcs-settings-collapsed');
+    const minBtn = $('tcs-min');
+    minBtn.title = collapsed ? tr('expandSettings') : tr('collapseSettings');
+    minBtn.setAttribute('aria-label', minBtn.title);
+    if (!STATE.comments.length) {
+      setStatus('statusChooseFile');
+      $('tcs-chat').innerHTML = `<div class="tcs-system">${tr('chooseChat')}</div>`;
+    }
+    if (STATE.searchResults.length) renderSearchResults();
+  }
+  async function loadLanguage() {
+    try {
+      const saved = await chrome.storage.local.get({language: 'en'});
+      STATE.language = I18N?.languages?.[saved.language] ? saved.language : 'en';
+    } catch { STATE.language = 'en'; }
+    applyLanguage();
+  }
+
+  function ensureUI() {
+    if ($('tcs-overlay')) return;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'tcs-overlay';
+    overlay.innerHTML = `
+      <div id="tcs-head">
+        <div id="tcs-title">Twitch VOD Chat for YouTube</div>
+        <button id="tcs-min" class="tcs-head-btn" type="button" title="Collapse settings" aria-label="Collapse settings">−</button>
+      </div>
+      <div id="tcs-controls">
+        <div class="tcs-control-row">
+          <button id="tcs-file-btn" class="tcs-mini-btn" type="button">Load chat JSON</button>
+          <span id="tcs-file-name" class="tcs-file-name">No chat file loaded</span>
+          <button id="tcs-clear" class="tcs-mini-btn" type="button">Clear chat</button>
+          <button id="tcs-save-json" class="tcs-mini-btn" type="button" title="Write the current offset directly into the loaded JSON file">Save offset to JSON</button>
+        </div>
+        <div class="tcs-control-row">
+          <label><span id="tcs-offset-label">Offset</span>
+            <span class="tcs-offset-control">
+              <input id="tcs-offset" class="tcs-input" type="text" value="+00:00:00" spellcheck="false" title="Use +HH:MM:SS, -HH:MM:SS, MM:SS, or seconds">
+              <button id="tcs-offset-down" class="tcs-step-btn" type="button" title="Decrease offset by 1 second">▼</button>
+              <button id="tcs-offset-up" class="tcs-step-btn" type="button" title="Increase offset by 1 second">▲</button>
+            </span>
+          </label>
+          <button id="tcs-offset-apply" class="tcs-mini-btn" type="button">Apply</button>
+          <div id="tcs-opacity-wrap"><span id="tcs-opacity-label">Opacity</span> <input id="tcs-opacity" type="range" min="25" max="100" step="1" value="94"><span id="tcs-opacity-value">94%</span></div>
+        </div>
+        <div class="tcs-control-row">
+          <input id="tcs-search" class="tcs-input" type="search" placeholder="Search chat to find a sync point…" spellcheck="false">
+          <button id="tcs-search-btn" type="button">Search</button>
+          <button id="tcs-search-clear" type="button">Clear</button>
+        </div>
+        <div class="tcs-control-row tcs-display-row">
+          <label class="tcs-check"><input id="tcs-show-timestamps" type="checkbox" checked><span id="tcs-show-timestamps-label">Show timestamps</span></label>
+          <label class="tcs-check"><input id="tcs-purple-messages" type="checkbox" checked><span id="tcs-purple-messages-label">Separate messages</span></label>
+          <label class="tcs-check"><input id="tcs-hide-scrollbar" type="checkbox"><span id="tcs-hide-scrollbar-label">Hide scrollbar</span></label>
+        </div>
+        <div class="tcs-control-row">
+          <div id="tcs-status">Choose a TwitchDownloader JSON chat file.</div>
+          <div id="tcs-search-status"></div>
+        </div>
+      </div>
+      <div id="tcs-search-results" hidden></div>
+      <div id="tcs-clean-drag-handle" role="button" tabindex="0" aria-label="Move chat" title="Move chat"></div>
+      <div id="tcs-chat"><div class="tcs-system">Open a YouTube video and load a Twitch chat JSON file.</div></div>
+      <div class="tcs-resize tcs-resize-r" data-edge="r"></div>
+      <div class="tcs-resize tcs-resize-l" data-edge="l"></div>
+      <div class="tcs-resize tcs-resize-t" data-edge="t"></div>
+      <div class="tcs-resize tcs-resize-b" data-edge="b"></div>
+      <div class="tcs-resize tcs-resize-tr" data-edge="tr"></div>
+      <div class="tcs-resize tcs-resize-tl" data-edge="tl"></div>
+      <div class="tcs-resize tcs-resize-br" data-edge="br"></div>
+      <div class="tcs-resize tcs-resize-bl" data-edge="bl"></div>`;
+    overlay.dataset.tcsVersion = '1.0';
+    document.body.appendChild(overlay);
+
+    $('tcs-clear').addEventListener('click', clearChat);
+    $('tcs-save-json').addEventListener('click', saveOffsetToJson);
+    $('tcs-offset-apply').addEventListener('click', applyOffset);
+    $('tcs-offset').addEventListener('keydown', (e) => { if (e.key === 'Enter') applyOffset(); });
+    function bindAcceleratingNudge(button, direction) {
+      let holdTimer = null;
+      let repeatTimer = null;
+      let pointerGesture = false;
+      let suppressClick = false;
+
+      const clearTimers = () => {
+        if (holdTimer !== null) { clearTimeout(holdTimer); holdTimer = null; }
+        if (repeatTimer !== null) { clearTimeout(repeatTimer); repeatTimer = null; }
+      };
+
+      const stepForHold = (count) => {
+        if (count < 10) return 1;
+        if (count < 20) return 2;
+        if (count < 35) return 5;
+        if (count < 55) return 10;
+        if (count < 80) return 20;
+        return 30;
+      };
+
+      // Gentle acceleration: remain on small steps for several seconds and
+      // only gradually shorten the repeat interval while the button is held.
+      const delayForHold = (count) => Math.max(180, 320 - Math.min(count, 28) * 5);
+
+      const startHold = () => {
+        holdTimer = setTimeout(() => {
+          let count = 0;
+          const repeat = () => {
+            nudgeOffset(direction * stepForHold(count));
+            count += 1;
+            repeatTimer = setTimeout(repeat, delayForHold(count));
+          };
+          repeatTimer = setTimeout(repeat, 280);
+        }, 450);
+      };
+
+      button.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        pointerGesture = true;
+        suppressClick = true;
+        try { button.setPointerCapture(e.pointerId); } catch {}
+        nudgeOffset(direction);
+        startHold();
+      });
+
+      const endPointer = () => {
+        if (!pointerGesture) return;
+        pointerGesture = false;
+        clearTimers();
+      };
+      button.addEventListener('pointerup', endPointer);
+      button.addEventListener('pointercancel', endPointer);
+
+      button.addEventListener('click', () => {
+        if (suppressClick) {
+          suppressClick = false;
+          return;
+        }
+        nudgeOffset(direction);
+      });
+    }
+
+    bindAcceleratingNudge($('tcs-offset-up'), 1);
+    bindAcceleratingNudge($('tcs-offset-down'), -1);
+    $('tcs-show-timestamps').addEventListener('change', () => {
+      STATE.showTimestamps = $('tcs-show-timestamps').checked;
+      applyDisplayPrefs(true);
+      savePrefs();
+      chrome.storage.local.set({showTimestamps: STATE.showTimestamps}).catch(() => {});
+    });
+    $('tcs-purple-messages').addEventListener('change', () => {
+      STATE.purpleMessages = $('tcs-purple-messages').checked;
+      applyDisplayPrefs(true);
+      savePrefs();
+      chrome.storage.local.set({purpleMessages: STATE.purpleMessages}).catch(() => {});
+    });
+    $('tcs-hide-scrollbar').addEventListener('change', () => {
+      setHideScrollbar($('tcs-hide-scrollbar').checked);
+    });
+    $('tcs-opacity').addEventListener('input', () => {
+      STATE.opacity = Math.max(25, Math.min(100, Number($('tcs-opacity').value) || 94));
+      applyOpacity();
+      savePrefs();
+      chrome.storage.local.set({opacity: STATE.opacity}).catch(() => {});
+    });
+    $('tcs-search-btn').addEventListener('click', runSearch);
+    $('tcs-search-clear').addEventListener('click', clearSearch);
+    $('tcs-search').addEventListener('keydown', (e) => { if (e.key === 'Enter') runSearch(); });
+    $('tcs-file-btn').addEventListener('click', openChatFile);
+    $('tcs-min').addEventListener('click', () => {
+      const overlay = $('tcs-overlay');
+      const controls = $('tcs-controls');
+      const results = $('tcs-search-results');
+      if (!overlay || !controls) return;
+      const collapsed = !overlay.classList.contains('tcs-settings-collapsed');
+      overlay.classList.toggle('tcs-settings-collapsed', collapsed);
+      controls.hidden = collapsed;
+      if (results) results.hidden = collapsed || !STATE.searchResults.length;
+      const btn = $('tcs-min');
+      btn.textContent = collapsed ? '+' : '−';
+      btn.title = collapsed ? tr('expandSettings') : tr('collapseSettings');
+      btn.setAttribute('aria-label', btn.title);
+    });
+
+    makeDraggable(overlay, $('tcs-head'));
+    makeDraggable(overlay, $('tcs-clean-drag-handle'));
+    makeResizable(overlay);
+    loadPrefs();
+    applyOpacity();
+    applyDisplayPrefs();
+    loadLanguage();
+    clampToViewport();
+    loadChatVisibility();
+    loadCleanChat();
+    loadPurpleMessages();
+    loadHideScrollbar();
+  }
+
+  function applyDisplayPrefs(rerender = false) {
+    const overlay = $('tcs-overlay');
+    if (!overlay) return;
+    overlay.classList.toggle('tcs-hide-timestamps', !STATE.showTimestamps);
+    overlay.classList.toggle('tcs-purple-messages', STATE.purpleMessages);
+    overlay.classList.toggle('tcs-hide-scrollbar', STATE.hideScrollbar);
+    overlay.classList.toggle('tcs-clean', STATE.cleanChat);
+    if ($('tcs-show-timestamps')) $('tcs-show-timestamps').checked = STATE.showTimestamps;
+    if ($('tcs-purple-messages')) $('tcs-purple-messages').checked = STATE.purpleMessages;
+    if ($('tcs-hide-scrollbar')) $('tcs-hide-scrollbar').checked = STATE.hideScrollbar;
+    if (rerender && STATE.comments.length) render(true);
+  }
+
+  function applyOpacity() {
+    const opacity = STATE.opacity / 100;
+    const overlay = $('tcs-overlay');
+    if (!overlay) return;
+    overlay.style.setProperty('--tcs-opacity', opacity.toFixed(2));
+    $('tcs-opacity').value = String(STATE.opacity);
+    $('tcs-opacity-value').textContent = tr('opacityValue', {n: STATE.opacity});
+  }
+
+  async function loadPrefs() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('tcsPrefs') || '{}');
+      if (Number.isFinite(saved.offset)) STATE.offset = saved.offset;
+      if (Number.isFinite(saved.windowSeconds)) STATE.windowSeconds = saved.windowSeconds;
+      if (Number.isFinite(saved.opacity)) STATE.opacity = Math.max(25, Math.min(100, saved.opacity));
+      if (typeof saved.showTimestamps === 'boolean') STATE.showTimestamps = saved.showTimestamps;
+
+      const chromeSaved = await chrome.storage.local.get({offset: null, opacity: null, showTimestamps: null, purpleMessages: null, hideScrollbar: null, cleanChat: null});
+      if (Number.isFinite(chromeSaved.offset)) STATE.offset = chromeSaved.offset;
+      if (Number.isFinite(chromeSaved.opacity)) STATE.opacity = Math.max(25, Math.min(100, chromeSaved.opacity));
+      else chrome.storage.local.set({opacity: STATE.opacity}).catch(() => {});
+      if (typeof chromeSaved.showTimestamps === 'boolean') STATE.showTimestamps = chromeSaved.showTimestamps;
+      else chrome.storage.local.set({showTimestamps: STATE.showTimestamps}).catch(() => {});
+      if (typeof chromeSaved.purpleMessages === 'boolean') STATE.purpleMessages = chromeSaved.purpleMessages;
+      else chrome.storage.local.set({purpleMessages: STATE.purpleMessages}).catch(() => {});
+      if (typeof chromeSaved.hideScrollbar === 'boolean') STATE.hideScrollbar = chromeSaved.hideScrollbar;
+      else chrome.storage.local.set({hideScrollbar: STATE.hideScrollbar}).catch(() => {});
+      if (typeof chromeSaved.cleanChat === 'boolean') STATE.cleanChat = chromeSaved.cleanChat;
+      else chrome.storage.local.set({cleanChat: STATE.cleanChat}).catch(() => {});
+
+      if ($('tcs-offset')) $('tcs-offset').value = formatOffset(STATE.offset);
+      if ($('tcs-opacity')) $('tcs-opacity').value = STATE.opacity;
+      if (saved.left != null) $('tcs-overlay').style.left = saved.left + 'px';
+      if (saved.top != null) $('tcs-overlay').style.top = saved.top + 'px';
+      if (saved.width != null) $('tcs-overlay').style.width = saved.width + 'px';
+      if (saved.height != null) $('tcs-overlay').style.height = saved.height + 'px';
+      applyOpacity();
+      applyDisplayPrefs();
+    } catch {}
+  }
+
+  async function loadChatVisibility() {
+    try {
+      const saved = await chrome.storage.local.get({ chatVisible: true });
+      STATE.chatVisible = saved.chatVisible !== false;
+      applyChatVisibility();
+    } catch {
+      STATE.chatVisible = true;
+      applyChatVisibility();
+    }
+  }
+
+  function setChatVisibility(visible, persist = true) {
+    STATE.chatVisible = !!visible;
+    applyChatVisibility();
+    if (persist) {
+      chrome.storage.local.set({ chatVisible: STATE.chatVisible }).catch(() => {});
+    }
+  }
+
+  function applyChatVisibility() {
+    const overlay = $('tcs-overlay');
+    if (!overlay) return;
+    overlay.classList.toggle('tcs-hidden', !STATE.chatVisible);
+  }
+
+  async function loadCleanChat() {
+    try {
+      const saved = await chrome.storage.local.get({ cleanChat: false });
+      STATE.cleanChat = saved.cleanChat === true;
+      applyDisplayPrefs();
+    } catch {
+      STATE.cleanChat = false;
+      applyDisplayPrefs();
+    }
+  }
+
+  async function loadPurpleMessages() {
+    try {
+      const saved = await chrome.storage.local.get({ purpleMessages: true });
+      STATE.purpleMessages = saved.purpleMessages !== false;
+      applyDisplayPrefs();
+    } catch {
+      STATE.purpleMessages = true;
+      applyDisplayPrefs();
+    }
+  }
+
+  async function loadHideScrollbar() {
+    try {
+      const saved = await chrome.storage.local.get({ hideScrollbar: false });
+      STATE.hideScrollbar = saved.hideScrollbar === true;
+      applyDisplayPrefs();
+    } catch {
+      STATE.hideScrollbar = false;
+      applyDisplayPrefs();
+    }
+  }
+
+  function setPurpleMessages(enabled, persist = true) {
+    STATE.purpleMessages = !!enabled;
+    applyDisplayPrefs(true);
+    if (persist) chrome.storage.local.set({ purpleMessages: STATE.purpleMessages }).catch(() => {});
+  }
+
+  function setShowTimestamps(enabled, persist = true) {
+    STATE.showTimestamps = !!enabled;
+    applyDisplayPrefs(true);
+    savePrefs();
+    if (persist) chrome.storage.local.set({ showTimestamps: STATE.showTimestamps }).catch(() => {});
+  }
+
+  function setOpacity(value, persist = true) {
+    STATE.opacity = Math.max(25, Math.min(100, Number(value) || 94));
+    applyOpacity();
+    savePrefs();
+    if (persist) chrome.storage.local.set({ opacity: STATE.opacity }).catch(() => {});
+  }
+
+  function setHideScrollbar(enabled, persist = true) {
+    STATE.hideScrollbar = !!enabled;
+    applyDisplayPrefs();
+    if (persist) chrome.storage.local.set({ hideScrollbar: STATE.hideScrollbar }).catch(() => {});
+  }
+
+  function setCleanChat(enabled, persist = true) {
+    STATE.cleanChat = !!enabled;
+    applyDisplayPrefs();
+    if (persist) chrome.storage.local.set({ cleanChat: STATE.cleanChat }).catch(() => {});
+  }
+
+  function savePrefs() {
+    try {
+      const r = $('tcs-overlay').getBoundingClientRect();
+      localStorage.setItem('tcsPrefs', JSON.stringify({
+        offset: STATE.offset,
+        windowSeconds: STATE.windowSeconds,
+        opacity: STATE.opacity,
+        showTimestamps: STATE.showTimestamps,
+        left: Math.round(r.left),
+        top: Math.round(r.top),
+        width: Math.round(r.width),
+        height: Math.round(r.height)
+      }));
+    } catch {}
+  }
+
+  function applyOffset() {
+    const parsed = parseOffset($('tcs-offset').value);
+    if (!Number.isFinite(parsed)) {
+      setStatus('invalidOffset');
+      return;
+    }
+    STATE.offset = parsed;
+    $('tcs-offset').value = formatOffset(parsed);
+    setStatus('offsetApplied', {offset: formatOffset(parsed)});
+    savePrefs();
+    chrome.storage.local.set({offset: STATE.offset}).catch(() => {});
+    render(true);
+  }
+
+  function nudgeOffset(deltaSeconds) {
+    const current = parseOffset($('tcs-offset').value);
+    const base = Number.isFinite(current) ? current : STATE.offset;
+    STATE.offset = base + deltaSeconds;
+    $('tcs-offset').value = formatOffset(STATE.offset);
+    setStatus('offsetCurrent', {offset: formatOffset(STATE.offset)});
+    savePrefs();
+    chrome.storage.local.set({offset: STATE.offset}).catch(() => {});
+    render(true);
+  }
+
+  async function getUtf8SafeTail(file, desiredSize = 128 * 1024 + 4) {
+  const size = Math.min(file.size, desiredSize);
+  const baseStart = file.size - size;
+  if (baseStart <= 0) return {text: await file.slice(0, file.size).text(), start: 0};
+  const probeStart = Math.max(0, baseStart - 3);
+  const probe = new Uint8Array(await file.slice(probeStart, baseStart + 1).arrayBuffer());
+  let safeStart = baseStart;
+  const baseIndex = baseStart - probeStart;
+  while (safeStart > probeStart) {
+    const b = probe[baseIndex - (baseStart - safeStart)];
+    if ((b & 0xC0) !== 0x80) break;
+    safeStart--;
+  }
+  return {text: await file.slice(safeStart, file.size).text(), start: safeStart};
+}
+
+function getSavedOffsetFromText(text) {
+    const source = safeText(text);
+    const m = source.match(/"_tcs_sync"\s*:\s*\{[^{}]*"offset_seconds"\s*:\s*(-?(?:\d+(?:\.\d+)?|\.\d+))/);
+    if (!m) return null;
+    const n = Number(m[1]);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function resetChatStateForLoad(fileName = '') {
+    STATE.comments = [];
+    STATE.times = [];
+    STATE.searchResults = [];
+    STATE.searchContextIndex = -1;
+    STATE.searchToken++;
+    userStringCache.clear();
+    colorStringCache.clear();
+    STATE.streamParser = null;
+    STATE.chatFileName = fileName || '';
+    STATE.extEmotes = new Map();
+    STATE.extEmoteRegex = null;
+    STATE.extEmotesReady = false;
+    STATE.extEmotesLoading = false;
+    STATE.extChannelId = '';
+    STATE.firstChannelId = '';
+    STATE.lastRenderedTarget = NaN;
+    STATE.lastRenderedFrom = -1;
+    STATE.lastRenderedTo = -1;
+  }
+
+  // Keep repeated high-cardinality metadata from allocating another copy per message.
+  // Bodies are intentionally NOT interned because they are usually unique.
+  const USER_CACHE_LIMIT = 50000;
+  const userStringCache = new Map();
+  const colorStringCache = new Map();
+
+  function internString(value, cache, limit = USER_CACHE_LIMIT) {
+    const str = safeText(value);
+    if (!str) return '';
+    const existing = cache.get(str);
+    if (existing !== undefined) return existing;
+    if (cache.size >= limit) cache.clear();
+    cache.set(str, str);
+    return str;
+  }
+
+  function normalizeCommentObject(c) {
+    if (!c || typeof c !== 'object') return null;
+    const t = Number(c?.content_offset_seconds);
+    if (!Number.isFinite(t)) return null;
+
+    const commenter = c?.commenter || {};
+    const msg = c?.message || {};
+    const body = safeText(msg.body);
+    const fragments = Array.isArray(msg.fragments) ? msg.fragments : [];
+    const emotes = [];
+
+    if (fragments.length) {
+      let cursor = 0;
+      let aligned = true;
+      for (const f of fragments) {
+        const text = safeText(f?.text);
+        const em = f?.emoticon || f?.emote;
+        const id = em?.emoticon_id || em?.emote_id || em?.id;
+        if (id) emotes.push([cursor, cursor + text.length, safeText(id)]);
+        cursor += text.length;
+      }
+      aligned = cursor === body.length;
+      if (!aligned) emotes.length = 0;
+    }
+
+    return {
+      t,
+      user: internString(commenter.display_name || commenter.name || tr('anonymous'), userStringCache),
+      color: internString(msg.user_color || '#a970ff', colorStringCache, 256),
+      body,
+      emotes: emotes.length ? emotes : null
+    };
+  }
+
+  function createStreamParser(fileName = '', savedOffset = null) {
+    return {
+      fileName: safeText(fileName),
+      decoder: new TextDecoder('utf-8'),
+      header: '',
+      commentsStarted: false,
+      rootArray: false,
+      rootEnded: false,
+      objectBuffer: '',
+      objectDepth: 0,
+      inString: false,
+      escaped: false,
+      comments: [],
+      count: 0,
+      lastTime: -Infinity,
+      needsSort: false,
+      channelId: '',
+      savedOffset: savedOffset != null && Number.isFinite(Number(savedOffset)) ? Number(savedOffset) : null
+    };
+  }
+
+  function beginStreamingLoad(fileName = '', savedOffset = null) {
+    resetChatStateForLoad(fileName);
+    STATE.streamParser = createStreamParser(fileName, savedOffset);
+    if (STATE.streamParser.savedOffset !== null) {
+      STATE.offset = STATE.streamParser.savedOffset;
+      chrome.storage.local.set({offset: STATE.offset}).catch(() => {});
+    }
+    if ($('tcs-offset')) $('tcs-offset').value = formatOffset(STATE.offset);
+    if ($('tcs-file-name')) $('tcs-file-name').textContent = fileName || tr('noChatFile');
+    if ($('tcs-title')) $('tcs-title').textContent = fileName ? tr('loadedTitle', {file: fileName}) : tr('title');
+    setStatus('statusLoading', {file: fileName});
+  }
+
+  async function appendStreamingChunk(chunk) {
+    const parser = STATE.streamParser;
+    if (!parser || parser.rootEnded) return;
+
+    let text = '';
+    if (chunk instanceof ArrayBuffer) {
+      text = parser.decoder.decode(new Uint8Array(chunk), {stream: true});
+    } else if (ArrayBuffer.isView(chunk)) {
+      text = parser.decoder.decode(new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength), {stream: true});
+    } else {
+      text = safeText(chunk);
+    }
+    if (!text) return;
+
+    if (!parser.commentsStarted) {
+      parser.header += text;
+      const rootArrayMatch = parser.header.match(/^\s*\[/);
+      if (rootArrayMatch) {
+        parser.commentsStarted = true;
+        parser.rootArray = true;
+        text = parser.header.slice(rootArrayMatch[0].length);
+        parser.header = '';
+      } else {
+        const match = parser.header.match(/"comments"\s*:\s*\[/);
+        if (match) {
+          parser.commentsStarted = true;
+          text = parser.header.slice(match.index + match[0].length);
+          parser.header = '';
+        } else {
+          if (parser.header.length > 2 * 1024 * 1024) parser.header = parser.header.slice(-64 * 1024);
+          return;
+        }
+      }
+    }
+
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if ((i & 0xFFFF) === 0 && i > 0) await new Promise(resolve => setTimeout(resolve, 0));
+
+      if (parser.objectDepth === 0) {
+        if (ch === '{') {
+          parser.objectDepth = 1;
+          parser.objectBuffer = '{';
+          parser.inString = false;
+          parser.escaped = false;
+        } else if (ch === ']') {
+          parser.rootEnded = true;
+          break;
+        }
+        continue;
+      }
+
+      parser.objectBuffer += ch;
+
+      if (parser.inString) {
+        if (parser.escaped) {
+          parser.escaped = false;
+        } else if (ch === '\\') {
+          parser.escaped = true;
+        } else if (ch === '"') {
+          parser.inString = false;
+        }
+        continue;
+      }
+
+      if (ch === '"') {
+        parser.inString = true;
+      } else if (ch === '{') {
+        parser.objectDepth++;
+      } else if (ch === '}') {
+        parser.objectDepth--;
+        if (parser.objectDepth === 0) {
+          let rawComment;
+          try {
+            rawComment = JSON.parse(parser.objectBuffer);
+          } catch (err) {
+            throw new Error(`Invalid chat message near message ${parser.count + 1}: ${err.message}`);
+          }
+          const comment = normalizeCommentObject(rawComment);
+          if (comment) {
+            if (comment.t < parser.lastTime - 0.0001) parser.needsSort = true;
+            parser.lastTime = comment.t;
+            if (!parser.channelId && rawComment?.channel_id) parser.channelId = safeText(rawComment.channel_id);
+            parser.comments.push(comment);
+            parser.count++;
+          }
+          parser.objectBuffer = '';
+        }
+      }
+    }
+  }
+
+  async function finishStreamingLoad() {
+    const parser = STATE.streamParser;
+    if (!parser) throw new Error('No chat load is in progress.');
+    const tail = parser.decoder.decode();
+    if (tail) await appendStreamingChunk(tail);
+    if (parser.objectDepth !== 0) throw new Error('The chat JSON ended in the middle of a message object.');
+    if (!parser.commentsStarted) throw new Error('Could not find the TwitchDownloader comments array.');
+    if (!parser.comments.length) throw new Error(tr('statusNoMessages'));
+
+    if (parser.needsSort) parser.comments.sort((a, b) => a.t - b.t);
+    STATE.comments = parser.comments;
+    STATE.times = new Float64Array(parser.comments.length);
+    for (let i = 0; i < parser.comments.length; i++) STATE.times[i] = parser.comments[i].t;
+    STATE.firstChannelId = parser.channelId;
+    STATE.streamParser = null;
+    STATE.lastRenderedTarget = NaN;
+    STATE.lastRenderedFrom = -1;
+    STATE.lastRenderedTo = -1;
+    clearSearch();
+    render(true);
+    loadExternalEmotes().catch(err => console.debug('Third-party emote load failed:', err));
+
+    const lastTime = STATE.times[STATE.times.length - 1] || 0;
+    const saved = parser.savedOffset !== null ? tr('savedOffsetSuffix', {offset: formatOffset(parser.savedOffset)}) : '';
+    setStatus('statusLoaded', {
+      count: localizedNumber(STATE.comments.length),
+      length: formatTime(lastTime),
+      sync: saved
+    });
+    return {offset: STATE.offset, hasChat: true, chatFileName: STATE.chatFileName || ''};
+  }
+
+  async function streamFileHandle(handle) {
+    const file = await handle.getFile();
+    const tailSize = Math.min(file.size, 128 * 1024 + 4);
+    let savedOffset = null;
+    if (tailSize) {
+      try {
+        const tail = (await getUtf8SafeTail(file, tailSize)).text;
+        savedOffset = getSavedOffsetFromText(tail);
+      } catch {}
+    }
+
+    beginStreamingLoad(file.name, savedOffset);
+    const chunkSize = 2 * 1024 * 1024;
+    for (let pos = 0; pos < file.size; pos += chunkSize) {
+      const end = Math.min(file.size, pos + chunkSize);
+      const buffer = await file.slice(pos, end).arrayBuffer();
+      await appendStreamingChunk(buffer);
+      // Give YouTube a chance to paint between large parsing chunks.
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+    const result = await finishStreamingLoad();
+    return {file, result};
+  }
+
+  async function openChatFile() {
+    try {
+      if (typeof window.showOpenFilePicker !== 'function') {
+        setStatus('statusUnsupportedEditing');
+        return;
+      }
+      const [handle] = await window.showOpenFilePicker({
+        id: 'tcs-chat-json',
+        multiple: false,
+        excludeAcceptAllOption: false,
+        types: [{ description: 'Twitch chat JSON', accept: { 'application/json': ['.json'] } }]
+      });
+      const {file} = await streamFileHandle(handle);
+      STATE.chatFileHandle = handle;
+      STATE.chatFileName = file.name;
+      $('tcs-file-name').textContent = file.name;
+      $('tcs-title').textContent = tr('loadedTitle', {file: file.name});
+    } catch (err) {
+      if (err?.name === 'AbortError') return;
+      console.error(err);
+      setStatus('statusOpenError', {error: err.message || err});
+    }
+  }
+
+  async function writeOffsetToHandle(handle, offsetSeconds) {
+    const file = await handle.getFile();
+    const tailSize = Math.min(file.size, 128 * 1024 + 4);
+    if (!tailSize) throw new Error('The chat JSON file is empty.');
+
+    const tailInfo = await getUtf8SafeTail(file, tailSize);
+    const tailStart = tailInfo.start;
+    const tail = tailInfo.text;
+    const meta = JSON.stringify({version:1, offset_seconds:Number(offsetSeconds) || 0});
+    const encoder = new TextEncoder();
+    const syncRe = /("_tcs_sync"\s*:\s*)\{\s*"version"\s*:\s*\d+\s*,\s*"offset_seconds"\s*:\s*-?(?:\d+(?:\.\d+)?|\.\d+)\s*(?:,\s*"saved_at"\s*:\s*"(?:\\.|[^"\\])*")?\s*\}/;
+    const match = syncRe.exec(tail);
+    const writable = await handle.createWritable({keepExistingData:true});
+
+    try {
+      if (match) {
+        const replacement = `${match[1]}${meta}`;
+        const globalByteStart = tailStart + encoder.encode(tail.slice(0, match.index)).byteLength;
+        const suffix = tail.slice(match.index + match[0].length);
+        const output = replacement + suffix;
+        await writable.seek(globalByteStart);
+        await writable.write(output);
+        await writable.truncate(globalByteStart + encoder.encode(output).byteLength);
+        await writable.close();
+        return file.name;
+      }
+
+      let finalIndex = tail.length - 1;
+      while (finalIndex >= 0 && /\s/.test(tail[finalIndex])) finalIndex--;
+      if (finalIndex < 0 || tail[finalIndex] !== '}') throw new Error('The loaded chat JSON is not a root object.');
+      const beforeFinal = tail.slice(0, finalIndex);
+      const separator = beforeFinal.trimEnd().endsWith('{') ? '' : ',';
+      const output = `${separator}\n"_tcs_sync":${meta}\n}` + tail.slice(finalIndex + 1);
+      const globalByteStart = tailStart + encoder.encode(beforeFinal).byteLength;
+      await writable.seek(globalByteStart);
+      await writable.write(output);
+      await writable.truncate(globalByteStart + encoder.encode(output).byteLength);
+      await writable.close();
+      return file.name;
+    } catch (err) {
+      try { await writable.abort(); } catch {}
+      throw err;
+    }
+  }
+
+  async function saveOffsetToJson() {
+    if (!STATE.chatFileHandle || !STATE.comments.length) {
+      setStatus('statusLoadFirst');
+      return;
+    }
+    try {
+      let permission = await STATE.chatFileHandle.queryPermission({ mode: 'readwrite' });
+      if (permission !== 'granted') permission = await STATE.chatFileHandle.requestPermission({ mode: 'readwrite' });
+      if (permission !== 'granted') {
+        setStatus('statusNoPermission');
+        return;
+      }
+      await writeOffsetToHandle(STATE.chatFileHandle, STATE.offset);
+      setStatus('statusSaved', {offset: formatOffset(STATE.offset), file: STATE.chatFileName});
+    } catch (err) {
+      console.error(err);
+      setStatus('statusWriteError', {file: STATE.chatFileName, error: err.message || err});
+    }
+  }
+
+  function clearChat() {
+    STATE.comments = [];
+    STATE.times = [];
+    STATE.streamParser = null;
+    STATE.chatFileName = '';
+    STATE.chatFileHandle = null;
+    STATE.extEmotes = new Map();
+    STATE.extEmotesReady = false;
+    STATE.extEmotesLoading = false;
+    STATE.extChannelId = '';
+    STATE.extEmoteRegex = null;
+    STATE.firstChannelId = '';
+    STATE.lastRenderedTarget = NaN;
+    STATE.lastRenderedFrom = -1;
+    STATE.lastRenderedTo = -1;
+    STATE.searchResults = [];
+    STATE.searchContextIndex = -1;
+    if ($('tcs-file-name')) $('tcs-file-name').textContent = tr('noChatFile');
+    $('tcs-title').textContent = tr('title');
+    setStatus('statusCleared');
+    $('tcs-chat').innerHTML = `<div class="tcs-system">${tr('chooseChat')}</div>`;
+    clearSearch();
+  }
+
+  function lowerBound(arr, value) {
+    let lo = 0, hi = arr.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (arr[mid] < value) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  }
+
+  function currentVideoTime() {
+    const v = findVideo();
+    return v && Number.isFinite(v.currentTime) ? v.currentTime : 0;
+  }
+
+  function render(force = false) {
+    if (!STATE.comments.length) return;
+    const video = STATE.currentVideo || findVideo();
+    if (!video) return;
+
+    const target = video.currentTime + STATE.offset;
+    const start = Math.max(0, target - STATE.windowSeconds);
+    const from = lowerBound(STATE.times, start);
+    const to = lowerBound(STATE.times, target + 0.0001);
+
+    // The visible DOM only changes when the message range changes.
+    // Offset/seek/style changes can still force a render.
+    if (!force && from === STATE.lastRenderedFrom && to === STATE.lastRenderedTo) return;
+
+    STATE.lastRenderedTarget = target;
+    STATE.lastRenderedFrom = from;
+    STATE.lastRenderedTo = to;
+
+    const recentFrom = Math.max(from, to - 220);
+    const box = $('tcs-chat');
+    const wasNearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+    const frag = document.createDocumentFragment();
+
+    for (let i = recentFrom; i < to; i++) {
+      frag.appendChild(renderComment(STATE.comments[i], (i - recentFrom) % 2 === 1));
+    }
+
+    if (to <= recentFrom) {
+      const empty = document.createElement('div');
+      empty.className = 'tcs-system';
+      empty.textContent = target < (STATE.times[0] || 0) ? tr('statusNoChatYet') : tr('statusNoChatWindow');
+      frag.appendChild(empty);
+    }
+
+    box.replaceChildren(frag);
+    if (wasNearBottom) box.scrollTop = box.scrollHeight;
+  }
+
+  function renderComment(c, alternate = false) {
+    const div = document.createElement('div');
+    div.className = `tcs-msg${alternate ? ' tcs-alt' : ''}`;
+
+    const tm = document.createElement('span');
+    tm.className = 'tcs-time';
+    tm.textContent = `[${formatTime(c.t, true)}]`;
+    tm.title = tr('timeJumpTitle', {time: formatTime(Math.max(0, c.t - STATE.offset), true)});
+    tm.addEventListener('click', () => seekToChatTime(c.t));
+    div.appendChild(tm);
+
+    const user = document.createElement('span');
+    user.className = 'tcs-user';
+    user.style.color = c.color || '#a970ff';
+    user.textContent = c.user + ':';
+    div.appendChild(user);
+
+    const body = document.createElement('span');
+    body.className = 'tcs-body';
+    if (c.emotes?.length) renderBodyWithEmoteRanges(body, c.body, c.emotes);
+    else renderThirdPartyText(body, c.body);
+    div.appendChild(body);
+    return div;
+  }
+
+  function renderBodyWithEmoteRanges(parent, bodyText, emotes) {
+    const source = safeText(bodyText);
+    let cursor = 0;
+    for (const range of emotes) {
+      const start = Math.max(cursor, Number(range?.[0]) || 0);
+      const end = Math.max(start, Number(range?.[1]) || start);
+      const id = safeText(range?.[2]);
+      if (start > cursor) renderThirdPartyText(parent, source.slice(cursor, start));
+      const text = source.slice(start, end);
+      if (id) {
+        const img = document.createElement('img');
+        img.className = 'tcs-emote';
+        img.alt = text;
+        img.title = text;
+        img.src = `https://static-cdn.jtvnw.net/emoticons/v2/${encodeURIComponent(id)}/default/dark/2.0`;
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.onerror = () => { img.replaceWith(document.createTextNode(text)); };
+        parent.appendChild(img);
+      } else if (text) {
+        renderThirdPartyText(parent, text);
+      }
+      cursor = end;
+    }
+    if (cursor < source.length) renderThirdPartyText(parent, source.slice(cursor));
+  }
+
+  function renderThirdPartyText(parent, text) {
+    const source = safeText(text);
+    if (!STATE.extEmotesReady || !STATE.extEmotes.size) {
+      parent.appendChild(document.createTextNode(source));
+      return;
+    }
+    const regex = STATE.extEmoteRegex || buildExtEmoteRegex();
+    if (!regex) {
+      parent.appendChild(document.createTextNode(source));
+      return;
+    }
+    let last = 0;
+    let match;
+    while ((match = regex.exec(source))) {
+      const matchStart = match.index;
+      const leading = match[1] || '';
+      const code = match[2] || match[0];
+      const codeStart = matchStart + leading.length;
+      const emote = STATE.extEmotes.get(code) || STATE.extEmotes.get(code.replace(/^:/, '').replace(/:$/, ''));
+      if (!emote) continue;
+      if (codeStart > last) parent.appendChild(document.createTextNode(source.slice(last, codeStart)));
+      const img = document.createElement('img');
+      img.className = 'tcs-emote tcs-ext-emote';
+      img.alt = code;
+      img.title = `${code} (${emote.provider})`;
+      img.src = emote.url;
+      img.loading = 'eager';
+      img.decoding = 'async';
+      img.onerror = () => { img.replaceWith(document.createTextNode(code)); };
+      parent.appendChild(img);
+      last = codeStart + code.length;
+    }
+    if (last < source.length) parent.appendChild(document.createTextNode(source.slice(last)));
+  }
+
+  function buildExtEmoteRegex() {
+    const keys = [...STATE.extEmotes.keys()].filter(Boolean).sort((a,b) => b.length - a.length).map(escapeRegex);
+    if (!keys.length) return null;
+    return new RegExp(`(^|\\s)(${keys.join('|')})(?=$|\\s|[.,!?;:])`, 'g');
+  }
+
+  function escapeRegex(s) { return safeText(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+  function addExtEmote(map, code, url, provider) {
+    const name = safeText(code).trim();
+    if (!name || !url) return;
+    const canonical = name.replace(/^:/, '').replace(/:$/, '');
+    map.set(name, {url, provider});
+    map.set(canonical, {url, provider});
+  }
+
+  async function loadExternalEmotes() {
+    if (STATE.extEmotesLoading || !STATE.comments.length) return;
+    const channelId = STATE.firstChannelId || '';
+    if (!channelId) {
+      STATE.extEmotesReady = true;
+      return;
+    }
+    if (STATE.extChannelId === channelId && STATE.extEmotesReady) return;
+    STATE.extEmotesLoading = true;
+    STATE.extEmotesReady = false;
+    STATE.extChannelId = channelId;
+    $('tcs-status').textContent += tr('loadingEmotesSuffix');
+
+    const map = new Map();
+    const tasks = [
+      loadBTTV(map, channelId),
+      loadFFZ(map, channelId),
+      loadSevenTV(map, channelId)
+    ];
+    await Promise.allSettled(tasks);
+    STATE.extEmotes = map;
+    STATE.extEmoteRegex = buildExtEmoteRegex();
+    STATE.extEmotesReady = true;
+    STATE.extEmotesLoading = false;
+    const count = [...map.keys()].filter((k, i, arr) => arr.indexOf(k.replace(/^:/, '').replace(/:$/, '')) === i).length;
+    setStatus('emotesFoundStatus', {count: localizedNumber(STATE.comments.length), length: formatTime(STATE.comments[STATE.comments.length - 1].t), emotes: localizedNumber(Math.max(0, Math.floor(count / 2)))});
+    render(true);
+  }
+
+  async function fetchJson(url) {
+    const r = await fetch(url, { credentials: 'omit', cache: 'force-cache' });
+    if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+    return r.json();
+  }
+
+  async function loadBTTV(map, channelId) {
+    try {
+      const [global, channel] = await Promise.all([
+        fetchJson('https://api.betterttv.net/3/cached/emotes/global'),
+        fetchJson(`https://api.betterttv.net/3/cached/users/twitch/${encodeURIComponent(channelId)}`)
+      ]);
+      for (const e of Array.isArray(global) ? global : []) {
+        addExtEmote(map, e.code, `https://cdn.betterttv.net/emote/${encodeURIComponent(e.id)}/3x`, 'BTTV');
+      }
+      for (const e of [...(channel?.channelEmotes || []), ...(channel?.sharedEmotes || [])]) {
+        addExtEmote(map, e.code, `https://cdn.betterttv.net/emote/${encodeURIComponent(e.id)}/3x`, 'BTTV');
+      }
+    } catch (err) {
+      console.debug('BTTV unavailable:', err);
+    }
+  }
+
+  function collectFFZSet(map, set) {
+    for (const e of set?.emoticons || []) {
+      const urls = e.urls || {};
+      const url = urls['2'] || urls['1'] || urls['4'];
+      if (url) addExtEmote(map, e.name, normalizeProtocol(url), 'FFZ');
+      const animated = e.animated || {};
+      const animatedUrl = animated['2'] || animated['1'] || animated['4'];
+      if (animatedUrl) addExtEmote(map, e.name, normalizeProtocol(animatedUrl), 'FFZ');
+    }
+  }
+
+  async function loadFFZ(map, channelId) {
+    try {
+      const [room, global] = await Promise.all([
+        fetchJson(`https://api.frankerfacez.com/v1/room/id/${encodeURIComponent(channelId)}`),
+        fetchJson('https://api.frankerfacez.com/v1/set/global')
+      ]);
+      const sets = room?.sets || {};
+      for (const set of Object.values(sets)) collectFFZSet(map, set);
+      for (const id of global?.default_sets || []) collectFFZSet(map, global?.sets?.[String(id)]);
+    } catch (err) {
+      console.debug('FFZ unavailable:', err);
+    }
+  }
+
+  async function loadSevenTV(map, channelId) {
+    try {
+      const [global, user] = await Promise.all([
+        fetchJson('https://7tv.io/v3/emote-sets/global'),
+        fetchJson(`https://7tv.io/v3/users/twitch/${encodeURIComponent(channelId)}`)
+      ]);
+      for (const e of global?.emotes || []) addExtEmote(map, e?.name, sevenTVUrl(e?.id), '7TV');
+      const setId = user?.emote_set?.id || user?.emote_sets?.[0]?.id;
+      if (!setId) return;
+      const set = await fetchJson(`https://api.7tv.app/v3/emote-sets/${encodeURIComponent(setId)}`);
+      for (const e of set?.emotes || []) addExtEmote(map, e?.name, sevenTVUrl(e?.id), '7TV');
+    } catch (err) {
+      console.debug('7TV unavailable:', err);
+    }
+  }
+
+  function sevenTVUrl(id) {
+    return id ? `https://cdn.7tv.app/emote/${encodeURIComponent(id)}/3x.webp` : '';
+  }
+
+  function normalizeProtocol(url) {
+    const s = safeText(url);
+    return s.startsWith('//') ? 'https:' + s : s;
+  }
+
+  function messageSearchText(c) {
+    return `${c.user} ${c.body}`.toLocaleLowerCase();
+  }
+
+  function runSearch() {
+    const query = safeText($('tcs-search').value).trim().toLocaleLowerCase();
+    if (!query) { clearSearch(); return; }
+    if (!STATE.comments.length) {
+      $('tcs-search-status').textContent = tr('searchLoadFirst');
+      return;
+    }
+
+    const token = ++STATE.searchToken;
+    STATE.searchQuery = query;
+    STATE.searchResults = [];
+    STATE.searchContextIndex = -1;
+    $('tcs-search-status').textContent = `${tr('search')}…`;
+
+    let i = 0;
+    const batchSize = 8000;
+
+    function searchBatch() {
+      if (token !== STATE.searchToken) return;
+      const end = Math.min(i + batchSize, STATE.comments.length);
+      const deadline = performance.now() + 8;
+      for (; i < end; i++) {
+        const c = STATE.comments[i];
+        if (messageSearchText(c).includes(query)) {
+          STATE.searchResults.push(i);
+          if (STATE.searchResults.length >= 150) break;
+        }
+        if ((i & 255) === 0 && performance.now() >= deadline) break;
+      }
+
+      if (i < STATE.comments.length && STATE.searchResults.length < 150) {
+        setTimeout(searchBatch, 0);
+      } else {
+        renderSearchResults();
+      }
+    }
+
+    searchBatch();
+  }
+
+  function clearSearch() {
+    STATE.searchToken++;
+    STATE.searchQuery = '';
+    STATE.searchResults = [];
+    STATE.searchContextIndex = -1;
+    if ($('tcs-search')) $('tcs-search').value = '';
+    if ($('tcs-search-status')) $('tcs-search-status').textContent = '';
+    if ($('tcs-search-results')) {
+      $('tcs-search-results').replaceChildren();
+      $('tcs-search-results').hidden = true;
+    }
+  }
+
+  function renderSearchResults() {
+    const box = $('tcs-search-results');
+    box.replaceChildren();
+    box.hidden = $('tcs-overlay')?.classList.contains('tcs-settings-collapsed') || false;
+    $('tcs-search-status').textContent = STATE.searchResults.length
+      ? tr(STATE.searchResults.length === 1 ? 'searchOneMatch' : 'searchManyMatches', {count: `${localizedNumber(STATE.searchResults.length)}${STATE.searchResults.length === 150 ? '+' : ''}`})
+      : tr('searchNone');
+
+    for (const index of STATE.searchResults) {
+      const c = STATE.comments[index];
+      const row = document.createElement('div');
+      row.className = 'tcs-result';
+
+      const main = document.createElement('div');
+      main.className = 'tcs-result-main';
+      const time = document.createElement('span');
+      time.className = 'tcs-result-time';
+      time.textContent = formatTime(c.t, true);
+      const user = document.createElement('span');
+      user.className = 'tcs-result-user';
+      user.style.color = c.color || '#a970ff';
+      user.textContent = c.user + ':';
+      main.append(time, user, document.createTextNode(' '));
+      appendHighlightedText(main, c.body, STATE.searchQuery);
+
+      const actions = document.createElement('div');
+      actions.className = 'tcs-result-actions';
+      const jump = document.createElement('button');
+      jump.className = 'tcs-mini-btn';
+      jump.textContent = tr('jump');
+      jump.addEventListener('click', (e) => { e.stopPropagation(); seekToChatTime(c.t); });
+      const sync = document.createElement('button');
+      sync.className = 'tcs-mini-btn';
+      sync.textContent = tr('syncHere');
+      sync.title = tr('syncHereTitle');
+      sync.addEventListener('click', (e) => {
+        e.stopPropagation();
+        syncOffsetToChatTime(c.t);
+      });
+      actions.append(jump, sync);
+      row.append(main, actions);
+      row.addEventListener('click', () => {
+        STATE.searchContextIndex = index;
+        showContext(index);
+      });
+      box.appendChild(row);
+    }
+  }
+
+  function appendHighlightedText(parent, text, query) {
+    const source = safeText(text);
+    if (!query) { parent.appendChild(document.createTextNode(source)); return; }
+    const lower = source.toLocaleLowerCase();
+    let cursor = 0;
+    let pos = lower.indexOf(query, cursor);
+    while (pos !== -1) {
+      if (pos > cursor) parent.appendChild(document.createTextNode(source.slice(cursor, pos)));
+      const mark = document.createElement('mark');
+      mark.className = 'tcs-hit';
+      mark.textContent = source.slice(pos, pos + query.length);
+      parent.appendChild(mark);
+      cursor = pos + query.length;
+      pos = lower.indexOf(query, cursor);
+    }
+    if (cursor < source.length) parent.appendChild(document.createTextNode(source.slice(cursor)));
+  }
+
+  function showContext(index) {
+    const c = STATE.comments[index];
+    if (!c) return;
+    const start = Math.max(0, c.t - 15);
+    const end = c.t + 15;
+    const from = lowerBound(STATE.times, start);
+    const to = lowerBound(STATE.times, end + 0.0001);
+    const box = $('tcs-chat');
+    const frag = document.createDocumentFragment();
+    const note = document.createElement('div');
+    note.className = 'tcs-pinned';
+    note.textContent = tr('context', {time: formatTime(c.t, true), start: formatTime(start, true), end: formatTime(end, true)});
+    frag.appendChild(note);
+    for (let i = from; i < to; i++) {
+      const row = renderComment(STATE.comments[i], (i - from) % 2 === 1);
+      if (i === index) row.style.outline = '1px solid #9147ff';
+      frag.appendChild(row);
+    }
+    box.replaceChildren(frag);
+    box.scrollTop = Math.max(0, [...box.children].findIndex(el => el.style.outline));
+  }
+
+  function syncOffsetToChatTime(chatTime) {
+    const video = findVideo();
+    if (!video) {
+      setStatus('noVideo');
+      return;
+    }
+    STATE.offset = chatTime - video.currentTime;
+    $('tcs-offset').value = formatOffset(STATE.offset);
+    chrome.storage.local.set({offset: STATE.offset}).catch(() => {});
+    savePrefs();
+    setStatus('synced', {chatTime: formatTime(chatTime, true), videoTime: formatTime(video.currentTime, true), offset: formatOffset(STATE.offset)});
+    savePrefs();
+    render(true);
+  }
+
+  function seekToChatTime(chatTime) {
+    const video = findVideo();
+    if (!video) return;
+    video.currentTime = Math.max(0, chatTime - STATE.offset);
+    render(true);
+  }
+
+  function detachVideoListeners(video) {
+    if (!video || !video.__tcsHandlers) return;
+    for (const [event, handler] of video.__tcsHandlers) {
+      try { video.removeEventListener(event, handler); } catch {}
+    }
+    delete video.__tcsHandlers;
+  }
+
+  function findVideo() {
+    const v = document.querySelector('video.html5-main-video, video');
+    if (v !== STATE.currentVideo) {
+      if (STATE.currentVideo) detachVideoListeners(STATE.currentVideo);
+      STATE.currentVideo = v || null;
+      if (STATE.currentVideo) attachVideoListeners(STATE.currentVideo);
+    }
+    return STATE.currentVideo;
+  }
+
+  function attachVideoListeners(video) {
+    if (!video || video.__tcsHandlers) return video;
+    const renderTick = () => {
+      try { ensureUI(); render(false); }
+      catch (err) { console.debug('Twitch VOD Chat for YouTube render error:', err); }
+    };
+    const forceTick = () => {
+      try { ensureUI(); render(true); }
+      catch (err) { console.debug('Twitch VOD Chat for YouTube forced render error:', err); }
+    };
+    const handlers = [
+      ['timeupdate', renderTick],
+      ['seeked', forceTick],
+      ['seeking', forceTick],
+      ['play', forceTick],
+      ['playing', forceTick],
+      ['ratechange', forceTick],
+      ['loadedmetadata', forceTick],
+      ['durationchange', forceTick],
+      ['ended', forceTick]
+    ];
+    for (const [event, handler] of handlers) video.addEventListener(event, handler, {passive: true});
+    video.__tcsHandlers = handlers;
+    try { render(true); } catch (err) { console.debug('Twitch VOD Chat for YouTube initial render error:', err); }
+    return video;
+  }
+
+  function startVideoObserver() {
+    ensureUI();
+    findVideo();
+
+    if (!STATE.videoObserverInterval) {
+      // YouTube can replace its <video> element during navigation/quality changes.
+      STATE.videoObserverInterval = setInterval(() => {
+        try {
+          ensureUI();
+          findVideo();
+        } catch (err) { console.debug('Twitch VOD Chat for YouTube video observer error:', err); }
+      }, 2000);
+    }
+
+    if (!STATE.syncHeartbeat) {
+      // Safety net for browsers/media states that throttle timeupdate. This is 4Hz
+      // instead of a 60Hz animation-frame loop and does no DOM query when attached.
+      STATE.syncHeartbeat = setInterval(() => {
+        try {
+          const video = STATE.currentVideo;
+          if (video && !video.paused && !video.ended) render(false);
+        } catch (err) { console.debug('Twitch VOD Chat for YouTube sync heartbeat error:', err); }
+      }, 250);
+    }
+  }
+
+  function makeDraggable(box, handle) {
+    handle.addEventListener('mousedown', (e) => {
+      if (e.target.closest('button') || e.target.closest('input')) return;
+      STATE.dragging = true;
+      const r = box.getBoundingClientRect();
+      STATE.startX = e.clientX; STATE.startY = e.clientY;
+      STATE.startLeft = r.left; STATE.startTop = r.top;
+      box.style.left = r.left + 'px'; box.style.top = r.top + 'px'; box.style.right = 'auto';
+      e.preventDefault();
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!STATE.dragging) return;
+      const nx = Math.max(0, Math.min(window.innerWidth - 60, STATE.startLeft + e.clientX - STATE.startX));
+      const ny = Math.max(0, Math.min(window.innerHeight - 60, STATE.startTop + e.clientY - STATE.startY));
+      box.style.left = nx + 'px'; box.style.top = ny + 'px';
+    });
+    window.addEventListener('mouseup', () => { if (STATE.dragging) { STATE.dragging = false; savePrefs(); } });
+  }
+
+  function makeResizable(box) {
+    box.querySelectorAll('.tcs-resize').forEach(grip => {
+      grip.addEventListener('mousedown', (e) => {
+        STATE.resizing = true;
+        STATE.resizeEdge = grip.dataset.edge;
+        const r = box.getBoundingClientRect();
+        STATE.startX = e.clientX; STATE.startY = e.clientY;
+        STATE.startLeft = r.left; STATE.startTop = r.top;
+        STATE.startWidth = r.width; STATE.startHeight = r.height;
+        e.preventDefault(); e.stopPropagation();
+      });
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!STATE.resizing) return;
+      const dx = e.clientX - STATE.startX;
+      const dy = e.clientY - STATE.startY;
+      const edge = STATE.resizeEdge || 'br';
+      let left = STATE.startLeft;
+      let top = STATE.startTop;
+      let width = STATE.startWidth;
+      let height = STATE.startHeight;
+
+      if (edge.includes('r')) width += dx;
+      if (edge.includes('l')) { width -= dx; left += dx; }
+      if (edge.includes('b')) height += dy;
+      if (edge.includes('t')) { height -= dy; top += dy; }
+
+      const minW = 300, minH = 300;
+      const maxW = Math.min(900, Math.max(minW, window.innerWidth - 24));
+      const maxH = Math.min(1400, Math.max(minH, window.innerHeight - 100));
+      if (width < minW) { if (edge.includes('l')) left -= minW - width; width = minW; }
+      if (width > maxW) { if (edge.includes('l')) left += width - maxW; width = maxW; }
+      if (height < minH) { if (edge.includes('t')) top -= minH - height; height = minH; }
+      if (height > maxH) { if (edge.includes('t')) top += height - maxH; height = maxH; }
+
+      box.style.left = Math.max(0, Math.min(window.innerWidth - width, left)) + 'px';
+      box.style.top = Math.max(0, Math.min(window.innerHeight - height, top)) + 'px';
+      box.style.right = 'auto';
+      box.style.width = width + 'px';
+      box.style.height = height + 'px';
+    });
+    window.addEventListener('mouseup', () => { if (STATE.resizing) { STATE.resizing = false; savePrefs(); } });
+  }
+
+  function clampToViewport() {
+    const box = $('tcs-overlay');
+    if (!box) return;
+    const r = box.getBoundingClientRect();
+    const w = Math.min(r.width, Math.max(300, window.innerWidth - 24));
+    const h = Math.min(r.height, Math.max(300, window.innerHeight - 100));
+    box.style.width = w + 'px';
+    box.style.height = h + 'px';
+    box.style.left = Math.max(0, Math.min(window.innerWidth - w, r.left)) + 'px';
+    box.style.top = Math.max(0, Math.min(window.innerHeight - h, r.top)) + 'px';
+  }
+
+  window.addEventListener('resize', clampToViewport);
+
+  chrome.storage.onChanged?.addListener((changes, areaName) => {
+    if (areaName !== 'local') return;
+    if (changes.chatVisible) {
+      STATE.chatVisible = changes.chatVisible.newValue !== false;
+      applyChatVisibility();
+    }
+    if (changes.cleanChat) {
+      STATE.cleanChat = changes.cleanChat.newValue === true;
+      applyDisplayPrefs();
+    }
+    if (changes.showTimestamps) {
+      STATE.showTimestamps = changes.showTimestamps.newValue !== false;
+      applyDisplayPrefs(true);
+    }
+    if (changes.purpleMessages) {
+      STATE.purpleMessages = changes.purpleMessages.newValue !== false;
+      applyDisplayPrefs(true);
+    }
+    if (changes.hideScrollbar) {
+      STATE.hideScrollbar = changes.hideScrollbar.newValue === true;
+      applyDisplayPrefs();
+    }
+    if (changes.opacity) {
+      const n = Number(changes.opacity.newValue);
+      if (Number.isFinite(n)) {
+        STATE.opacity = Math.max(25, Math.min(100, n));
+        applyOpacity();
+      }
+    }
+    if (changes.language) {
+      STATE.language = I18N?.languages?.[changes.language.newValue] ? changes.language.newValue : 'en';
+      applyLanguage();
+    }
+  });
+
+  chrome.runtime.onMessage?.addListener((msg, _sender, sendResponse) => {
+    ensureUI();
+    if (msg?.action === 'show') {
+      setChatVisibility(true);
+      sendResponse?.({ ok: true, visible: true });
+      return true;
+    }
+    if (msg?.action === 'hide') {
+      setChatVisibility(false);
+      sendResponse?.({ ok: true, visible: false });
+      return true;
+    }
+    if (msg?.action === 'set-clean-chat') {
+      setCleanChat(msg.enabled === true);
+      sendResponse?.({ ok: true, cleanChat: STATE.cleanChat });
+      return true;
+    }
+    if (msg?.action === 'set-purple-messages') {
+      setPurpleMessages(msg.enabled === true);
+      sendResponse?.({ ok: true, purpleMessages: STATE.purpleMessages });
+      return true;
+    }
+    if (msg?.action === 'set-hide-scrollbar') {
+      setHideScrollbar(msg.enabled === true);
+      sendResponse?.({ ok: true, hideScrollbar: STATE.hideScrollbar });
+      return true;
+    }
+    if (msg?.action === 'set-show-timestamps') {
+      setShowTimestamps(msg.enabled === true);
+      sendResponse?.({ ok: true, showTimestamps: STATE.showTimestamps });
+      return true;
+    }
+    if (msg?.action === 'set-opacity') {
+      setOpacity(msg.opacity);
+      sendResponse?.({ ok: true, opacity: STATE.opacity });
+      return true;
+    }
+    if (msg?.action === 'get-state') {
+      sendResponse?.({
+        ok: true,
+        offset: STATE.offset,
+        hasChat: STATE.comments.length > 0,
+        chatFileName: STATE.chatFileName || ''
+      });
+      return true;
+    }
+    if (msg?.action === 'set-offset') {
+      const n = Number(msg.offset);
+      if (!Number.isFinite(n)) {
+        sendResponse?.({ ok: false });
+        return true;
+      }
+      STATE.offset = n;
+      if ($('tcs-offset')) $('tcs-offset').value = formatOffset(n);
+      savePrefs();
+      chrome.storage.local.set({offset: STATE.offset}).catch(() => {});
+      render(true);
+      sendResponse?.({ ok: true, offset: STATE.offset });
+      return true;
+    }
+    if (msg?.action === 'open-chat-file') {
+      openChatFile().then(() => sendResponse?.({
+        ok: !!STATE.chatFileHandle && STATE.comments.length > 0,
+        hasChat: STATE.comments.length > 0,
+        chatFileName: STATE.chatFileName || ''
+      })).catch(() => sendResponse?.({ ok: false }));
+      return true;
+    }
+    if (msg?.action === 'load-chat-start') {
+      try {
+        // Toolbar loads use structured-clone messaging to pass the same
+        // FileSystemFileHandle into the content script. This lets the
+        // overlay's Save Offset button operate on the original JSON file.
+        beginStreamingLoad(msg.fileName, msg.savedOffset);
+        if (msg.fileHandle) STATE.chatFileHandle = msg.fileHandle;
+        sendResponse?.({ok: true});
+      } catch (err) {
+        sendResponse?.({ok:false, error:err.message || String(err)});
+      }
+      return true;
+    }
+    if (msg?.action === 'load-chat-chunk') {
+      appendStreamingChunk(msg.chunk).then(() => {
+        sendResponse?.({ok: true});
+      }).catch(err => {
+        STATE.streamParser = null;
+        sendResponse?.({ok:false, error:err.message || String(err)});
+      });
+      return true;
+    }
+    if (msg?.action === 'load-chat-complete') {
+      finishStreamingLoad().then(result => sendResponse?.({ok:true, ...result})).catch(err => sendResponse?.({ok:false, error:err.message || String(err)}));
+      return true;
+    }
+    if (msg?.action === 'save-offset') {
+      saveOffsetToJson().then(() => sendResponse?.({ ok: true, offset: STATE.offset, hasChat: true, chatFileName: STATE.chatFileName || '' }))
+        .catch(() => sendResponse?.({ ok: false, offset: STATE.offset }));
+      return true;
+    }
+    if (msg?.action === 'toggle-settings') {
+      const overlay = $('tcs-overlay');
+      const controls = $('tcs-controls');
+      const results = $('tcs-search-results');
+      if (overlay && controls) {
+        const collapsed = !overlay.classList.contains('tcs-settings-collapsed');
+        overlay.classList.toggle('tcs-settings-collapsed', collapsed);
+        controls.hidden = collapsed;
+        if (results) results.hidden = collapsed || !STATE.searchResults.length;
+        const btn = $('tcs-min');
+        btn.textContent = collapsed ? '+' : '−';
+        btn.title = collapsed ? tr('expandSettings') : tr('collapseSettings');
+        btn.setAttribute('aria-label', btn.title);
+      }
+      sendResponse?.({ ok: true });
+      return true;
+    }
+    if (msg?.action === 'set-language') {
+      STATE.language = I18N?.languages?.[msg.language] ? msg.language : 'en';
+      applyLanguage();
+      sendResponse?.({ ok: true, language: STATE.language });
+      return true;
+    }
+  });
+
+  ensureUI();
+  startVideoObserver();
+})();

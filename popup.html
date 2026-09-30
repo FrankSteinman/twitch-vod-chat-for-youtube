@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Twitch VOD Chat for YouTube</title>
+  <style>
+    body{margin:0;padding:14px;width:320px;background:#18181b;color:#efeff1;font:14px/1.4 "Segoe UI",Arial,sans-serif}
+    h1{font-size:16px;margin:0 0 8px}
+    p{color:#adadb8;margin:0 0 10px}
+    .top-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0 8px}
+    .offset-row{display:flex;align-items:center;gap:6px;margin:0 0 10px}
+    .offset-label{color:#adadb8;font-size:12px;white-space:nowrap}
+    .offset-input{flex:1;min-width:0;box-sizing:border-box;background:#0e0e10;color:#efeff1;border:1px solid #46464f;border-radius:4px;padding:6px 7px}
+    .offset-steps{display:flex;gap:4px;flex:0 0 auto}
+    .step{width:28px;padding:6px 0!important}
+    .offset-apply{padding:6px 8px}
+    .file-status{color:#adadb8;font-size:11px;min-height:16px;margin:-2px 0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .language-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0}
+    .language-row label{color:#adadb8;font-size:12px}
+    select{box-sizing:border-box;min-width:165px;background:#0e0e10;color:#efeff1;border:1px solid #46464f;border-radius:4px;padding:5px 7px}
+    .clean-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0}
+    .clean-label{color:#adadb8;font-size:12px;flex:1}
+    .range-wrap{display:flex;align-items:center;gap:7px;flex:1;justify-content:flex-end}
+    .range-wrap input{width:110px}
+    .range-value{color:#adadb8;font-size:12px;min-width:42px;text-align:right}
+    .switch{position:relative;display:inline-block;width:38px;height:22px;flex:0 0 auto}
+    .switch input{opacity:0;width:0;height:0}
+    .slider{position:absolute;inset:0;background:#46464f;border-radius:22px;cursor:pointer;transition:.15s}
+    .slider:before{content:"";position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s}
+    .switch input:checked + .slider{background:#9147ff}
+    .switch input:checked + .slider:before{transform:translateX(16px)}
+    button{border:0;border-radius:4px;padding:7px 10px;background:#9147ff;color:#fff;font-weight:700;cursor:pointer}
+    button:hover{background:#772ce8}
+    button.secondary{background:#26262b;border:1px solid #46464f}
+    button.secondary:hover{background:#303036}
+    button:disabled{opacity:.45;cursor:default}
+  </style>
+</head>
+<body>
+  <h1>Twitch VOD Chat for YouTube</h1>
+  <p id="description">Control whether the Twitch chat overlay is shown on YouTube. The setting is remembered.</p>
+
+  <div class="top-actions">
+    <button id="load-chat">Load chat</button>
+    <button id="save-offset" class="secondary" disabled>Save offset</button>
+  </div>
+  <div class="offset-row">
+    <span id="offset-label" class="offset-label">Offset</span>
+    <input id="offset" class="offset-input" type="text" value="+00:00:00" spellcheck="false">
+    <div class="offset-steps">
+      <button id="offset-down" class="step secondary" type="button">▼</button>
+      <button id="offset-up" class="step secondary" type="button">▲</button>
+    </div>
+    <button id="offset-apply" class="offset-apply" type="button">Apply</button>
+  </div>
+  <div id="file-status" class="file-status"></div>
+
+  <div class="language-row">
+    <label id="language-label" for="language">Language</label>
+    <select id="language" aria-label="Language"></select>
+  </div>
+  <div class="clean-row">
+    <span id="clean-chat-label" class="clean-label">Clean chat</span>
+    <label class="switch" aria-label="Clean chat">
+      <input id="clean-chat" type="checkbox">
+      <span class="slider"></span>
+    </label>
+  </div>
+  <div class="clean-row">
+    <span id="show-timestamps-label" class="clean-label">Show timestamps</span>
+    <label class="switch" aria-label="Show timestamps">
+      <input id="show-timestamps" type="checkbox">
+      <span class="slider"></span>
+    </label>
+  </div>
+  <div class="clean-row">
+    <span id="split-messages-label" class="clean-label">Split messages</span>
+    <label class="switch" aria-label="Split messages">
+      <input id="split-messages" type="checkbox">
+      <span class="slider"></span>
+    </label>
+  </div>
+  <div class="clean-row">
+    <span id="hide-scrollbar-label" class="clean-label">Hide scrollbar</span>
+    <label class="switch" aria-label="Hide scrollbar">
+      <input id="hide-scrollbar" type="checkbox">
+      <span class="slider"></span>
+    </label>
+  </div>
+  <div class="clean-row">
+    <span id="opacity-label" class="clean-label">Opacity</span>
+    <div class="range-wrap">
+      <input id="opacity" type="range" min="25" max="100" step="1" value="94">
+      <span id="opacity-value" class="range-value">94%</span>
+    </div>
+  </div>
+  <div class="top-actions">
+    <button id="hide" class="secondary">Hide chat</button>
+    <button id="open">Show chat</button>
+  </div>
+  <script src="i18n.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

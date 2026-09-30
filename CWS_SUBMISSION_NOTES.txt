@@ -1,0 +1,37 @@
+Twitch VOD Chat for YouTube — Chrome Web Store submission notes
+================================================================
+
+Suggested single purpose
+------------------------
+Display and synchronize a Twitch VOD chat replay with a YouTube video.
+
+Permissions
+-----------
+`storage`: stores the user's language, appearance preferences, chat visibility preference, and synchronization offset.
+
+Host permissions
+-----------------
+`api.betterttv.net`: retrieve BTTV global/channel emote metadata.
+`api.frankerfacez.com`: retrieve FFZ global/channel emote metadata.
+`7tv.io`: retrieve 7TV global/channel emote metadata.
+`api.7tv.app`: retrieve 7TV emote-set metadata.
+
+Remote code
+-----------
+No. All executable JavaScript and CSS are bundled with the extension. Remote services are used only for data and images.
+
+User data
+---------
+The selected chat JSON is processed locally in the browser. The developer does not receive the chat file. The only data sent to developer-selected third-party services is the Twitch channel ID used to look up public emote sets.
+
+Important publishing detail
+---------------------------
+The Chrome Web Store dashboard currently requires privacy-practice disclosures and permission justifications. If Google treats the chat data as personal/sensitive user data, provide the hosted PRIVACY.md as the extension's privacy policy URL.
+
+Suggested listing summary
+-------------------------
+Display a local Twitch VOD chat replay over YouTube with syncing, search, emotes, and appearance controls.
+
+Suggested homepage/support location
+-----------------------------------
+Use the GitHub repository once created. Host PRIVACY.md in that repository and use its public URL for the privacy-policy field when required.
