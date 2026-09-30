@@ -66,6 +66,6 @@ See `PRIVACY.md` for more information.
 
 ## Version
 
-**1.0**
+**1.01**
 
 This is a casual project. Updates may be made occasionally when something needs fixing or stops working. All of this was done with the help of ChatGPT.
