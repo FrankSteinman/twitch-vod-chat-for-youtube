@@ -2,6 +2,8 @@
 
 A Chrome extension that allows you to display Twitch VOD chats on YouTube.
 
+<img width="2538" height="1360" alt="2026-09-30 04-28-35" src="https://github.com/user-attachments/assets/96ed68f7-c897-4733-ad3e-fa8957c08a81" />
+
 ## Features
 
 - Display Twitch VOD chat alongside YouTube videos
