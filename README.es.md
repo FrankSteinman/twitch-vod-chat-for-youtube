@@ -13,6 +13,7 @@ Una extensión de Chrome que permite mostrar chats de VOD de Twitch en YouTube.
 <img width="462" height="362" alt="overlay es" src="https://github.com/user-attachments/assets/1657ab55-5767-4962-89a8-9094e7de5be5" />
 
 - Mostrar el chat de Twitch de un VOD junto a vídeos de YouTube
+- Carga URLs de VODs de Twitch para cargar el chat
 - Ajustar el desfase del chat para sincronizarlo con el vídeo
 - Guardar el desfase en el archivo JSON original del chat
 - Buscar mensajes del chat para encontrar puntos de sincronización
@@ -42,7 +43,7 @@ Después de instalar o actualizar la extensión, actualiza las pestañas de YouT
 
 ## Cómo usar la extensión
 
-Carga un archivo JSON del chat de Twitch desde el icono de la extensión o desde el propio chat. La extensión sincronizará el chat con la posición actual del vídeo de YouTube.
+Puedes introducir la URL del VOD de Twitch o cargar archivo JSON del chat de Twitch desde el icono de la extensión o desde el propio chat. La extensión sincronizará el chat con la posición actual del vídeo de YouTube.
 
 Usa los controles de **Desfase** para ajustar la sincronización. Un desfase positivo hace que el chat de Twitch mostrado avance con respecto al vídeo de YouTube.
 
