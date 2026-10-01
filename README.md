@@ -52,12 +52,6 @@ I recommend using [TwitchDownloader](https://github.com/lay295/TwitchDownloader)
 
 The downloaded JSON can then be loaded directly into the extension.
 
-## Website
-
-[Visit the website](https://franksteinman.github.io/twitch-vod-chat-for-youtube/)
-
-The website describes features but it isn't really any new information not already above. 
-
 ## Privacy
 
 Chat files are processed locally in the browser. The extension does not require an account or a separate service to display the chat.
