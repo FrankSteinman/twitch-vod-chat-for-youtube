@@ -23,6 +23,8 @@
     .range-wrap{display:flex;align-items:center;gap:7px;flex:1;justify-content:flex-end}
     .range-wrap input{width:110px}
     .range-value{color:#adadb8;font-size:12px;min-width:42px;text-align:right}
+    .color-wrap{display:flex;align-items:center;gap:7px;flex:1;justify-content:flex-end}
+    #split-color{width:42px;height:26px;padding:1px 2px;box-sizing:border-box;background:#0e0e10;border:1px solid #46464f;border-radius:4px;cursor:pointer}
     .switch{position:relative;display:inline-block;width:38px;height:22px;flex:0 0 auto}
     .switch input{opacity:0;width:0;height:0}
     .slider{position:absolute;inset:0;background:#46464f;border-radius:22px;cursor:pointer;transition:.15s}
@@ -38,8 +40,10 @@
 </head>
 <body>
   <h1>Twitch VOD Chat for YouTube</h1>
-  <p id="description">Control whether the Twitch chat overlay is shown on YouTube. The setting is remembered.</p>
-
+  <div class="top-actions">
+    <button id="hide" class="secondary">Hide chat</button>
+    <button id="open">Show chat</button>
+  </div>
   <div class="top-actions">
     <button id="load-chat">Load chat</button>
     <button id="save-offset" class="secondary" disabled>Save offset</button>
@@ -88,15 +92,25 @@
     </label>
   </div>
   <div class="clean-row">
+    <span id="hide-chat-frame-label" class="clean-label">Remove chat frame</span>
+    <label class="switch" aria-label="Remove chat frame">
+      <input id="hide-chat-frame" type="checkbox">
+      <span class="slider"></span>
+    </label>
+  </div>
+  <div class="clean-row">
     <span id="opacity-label" class="clean-label">Opacity</span>
     <div class="range-wrap">
-      <input id="opacity" type="range" min="25" max="100" step="1" value="94">
+      <input id="opacity" type="range" min="0" max="100" step="1" value="94">
       <span id="opacity-value" class="range-value">94%</span>
     </div>
   </div>
-  <div class="top-actions">
-    <button id="hide" class="secondary">Hide chat</button>
-    <button id="open">Show chat</button>
+  <div class="clean-row">
+    <span id="split-color-label" class="clean-label">Split message color</span>
+    <div class="color-wrap">
+      <input id="split-color" type="color" value="#563e76" aria-label="Split message color">
+      <button id="split-color-reset" class="secondary" type="button">Reset to default</button>
+    </div>
   </div>
   <script src="i18n.js"></script>
   <script src="popup.js"></script>

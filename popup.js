@@ -49,7 +49,6 @@ function formatOffset(seconds) {
 function applyLanguage(lang) {
   const L = I18N.get(lang);
   document.getElementById('language-label').textContent = L.popup.language;
-  document.getElementById('description').textContent = L.popup.description;
   document.getElementById('hide').textContent = L.popup.hideChat;
   document.getElementById('open').textContent = L.popup.showChat;
   document.getElementById('language').setAttribute('aria-label', L.popup.language);
@@ -59,7 +58,10 @@ function applyLanguage(lang) {
   const showTimestampsLabel = L.popup.showTimestamps || EN.popup.showTimestamps;
   const splitMessagesLabel = L.popup.splitMessages || EN.popup.splitMessages;
   const opacityLabel = L.popup.opacity || EN.popup.opacity;
+  const splitColorLabel = L.popup.splitMessageColor || EN.popup.splitMessageColor;
+  const resetSplitColorLabel = L.popup.resetSplitMessageColor || EN.popup.resetSplitMessageColor;
   const hideScrollbarLabel = L.popup.hideScrollbar || EN.popup.hideScrollbar;
+  const hideChatFrameLabel = L.popup.hideChatFrame || EN.popup.hideChatFrame;
   const loadChatLabel = L.popup.loadChat || EN.popup.loadChat;
   const saveOffsetLabel = L.popup.saveOffset || EN.popup.saveOffset;
   const offsetLabel = L.popup.offset || EN.popup.offset;
@@ -69,8 +71,13 @@ function applyLanguage(lang) {
   document.getElementById('split-messages-label').textContent = splitMessagesLabel;
   document.getElementById('split-messages').setAttribute('aria-label', splitMessagesLabel);
   document.getElementById('opacity-label').textContent = opacityLabel;
+  document.getElementById('split-color-label').textContent = splitColorLabel;
+  document.getElementById('split-color').setAttribute('aria-label', splitColorLabel);
+  document.getElementById('split-color-reset').textContent = resetSplitColorLabel;
   document.getElementById('hide-scrollbar-label').textContent = hideScrollbarLabel;
   document.getElementById('hide-scrollbar').setAttribute('aria-label', hideScrollbarLabel);
+  document.getElementById('hide-chat-frame-label').textContent = hideChatFrameLabel;
+  document.getElementById('hide-chat-frame').setAttribute('aria-label', hideChatFrameLabel);
   document.getElementById('load-chat').textContent = loadChatLabel;
   document.getElementById('save-offset').textContent = saveOffsetLabel;
   document.getElementById('offset-label').textContent = offsetLabel;
@@ -309,15 +316,19 @@ async function loadChatFromPopup() {
 
 async function loadSettings() {
   const saved = await chrome.storage.local.get({
-    language:'en', cleanChat:false, showTimestamps:true, purpleMessages:true, hideScrollbar:false, opacity:94, offset:0
+    language:'en', cleanChat:false, showTimestamps:true, purpleMessages:true, hideScrollbar:false, hideChatFrame:false, opacity:94, splitColor:'#563e76', offset:0
   });
   buildLanguageOptions(saved.language);
   document.getElementById('clean-chat').checked = saved.cleanChat === true;
   document.getElementById('show-timestamps').checked = saved.showTimestamps !== false;
   document.getElementById('split-messages').checked = saved.purpleMessages !== false;
   document.getElementById('hide-scrollbar').checked = saved.hideScrollbar === true;
-  document.getElementById('opacity').value = String(Math.max(25, Math.min(100, Number(saved.opacity) || 94)));
+  document.getElementById('hide-chat-frame').checked = saved.hideChatFrame === true;
+  const savedOpacity = Number(saved.opacity);
+  document.getElementById('opacity').value = String(Number.isFinite(savedOpacity) ? Math.max(0, Math.min(100, savedOpacity)) : 94);
   document.getElementById('opacity-value').textContent = `${document.getElementById('opacity').value}%`;
+  const savedSplitColor = /^#[0-9a-fA-F]{6}$/.test(String(saved.splitColor || '')) ? String(saved.splitColor).toLowerCase() : '#563e76';
+  document.getElementById('split-color').value = savedSplitColor;
   setOffsetUI(saved.offset);
   applyLanguage(saved.language);
 
@@ -355,6 +366,12 @@ async function setSplitMessages(enabled) {
   await sendToContent({action:'set-purple-messages', enabled:value});
 }
 
+async function setHideChatFrame(enabled) {
+  const value = enabled === true;
+  await chrome.storage.local.set({hideChatFrame: value});
+  await sendToContent({action:'set-hide-chat-frame', enabled:value});
+}
+
 async function setHideScrollbar(enabled) {
   const value = enabled === true;
   await chrome.storage.local.set({hideScrollbar: value});
@@ -362,11 +379,19 @@ async function setHideScrollbar(enabled) {
 }
 
 async function setOpacity(value) {
-  const n = Math.max(25, Math.min(100, Number(value) || 94));
+  const raw = Number(value);
+  const n = Number.isFinite(raw) ? Math.max(0, Math.min(100, raw)) : 94;
   await chrome.storage.local.set({opacity:n});
   document.getElementById('opacity').value = String(n);
   document.getElementById('opacity-value').textContent = `${n}%`;
   await sendToContent({action:'set-opacity', opacity:n});
+}
+
+async function setSplitColor(value) {
+  const color = /^#[0-9a-fA-F]{6}$/.test(String(value || '')) ? String(value).toLowerCase() : '#563e76';
+  document.getElementById('split-color').value = color;
+  await chrome.storage.local.set({splitColor: color});
+  await sendToContent({action:'set-split-color', color});
 }
 
 async function applyOffset() {
@@ -509,7 +534,10 @@ document.getElementById('clean-chat').addEventListener('change', (e) => setClean
 document.getElementById('show-timestamps').addEventListener('change', (e) => setShowTimestamps(e.target.checked));
 document.getElementById('split-messages').addEventListener('change', (e) => setSplitMessages(e.target.checked));
 document.getElementById('hide-scrollbar').addEventListener('change', (e) => setHideScrollbar(e.target.checked));
+document.getElementById('hide-chat-frame').addEventListener('change', (e) => setHideChatFrame(e.target.checked));
 document.getElementById('opacity').addEventListener('input', (e) => setOpacity(e.target.value));
+document.getElementById('split-color').addEventListener('input', (e) => setSplitColor(e.target.value));
+document.getElementById('split-color-reset').addEventListener('click', () => setSplitColor('#563e76'));
 document.getElementById('language').addEventListener('change', async (e) => {
   const language = I18N.languages[e.target.value] ? e.target.value : 'en';
   await chrome.storage.local.set({language});
@@ -523,10 +551,16 @@ chrome.storage.onChanged?.addListener(async (changes, areaName) => {
   if (changes.showTimestamps) document.getElementById('show-timestamps').checked = changes.showTimestamps.newValue !== false;
   if (changes.purpleMessages) document.getElementById('split-messages').checked = changes.purpleMessages.newValue !== false;
   if (changes.hideScrollbar) document.getElementById('hide-scrollbar').checked = changes.hideScrollbar.newValue === true;
+  if (changes.hideChatFrame) document.getElementById('hide-chat-frame').checked = changes.hideChatFrame.newValue === true;
   if (changes.opacity) {
-    const n = Math.max(25, Math.min(100, Number(changes.opacity.newValue) || 94));
+    const raw = Number(changes.opacity.newValue);
+    const n = Number.isFinite(raw) ? Math.max(0, Math.min(100, raw)) : 94;
     document.getElementById('opacity').value = String(n);
     document.getElementById('opacity-value').textContent = `${n}%`;
+  }
+  if (changes.splitColor) {
+    const color = /^#[0-9a-fA-F]{6}$/.test(String(changes.splitColor.newValue || '')) ? String(changes.splitColor.newValue).toLowerCase() : '#563e76';
+    document.getElementById('split-color').value = color;
   }
   if (changes.offset && Number.isFinite(Number(changes.offset.newValue))) {
     setOffsetUI(Number(changes.offset.newValue));

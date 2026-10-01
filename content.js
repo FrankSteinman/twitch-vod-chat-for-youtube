@@ -7,6 +7,7 @@
     offset: 0,
     windowSeconds: 180,
     opacity: 94,
+    splitColor: '#563e76',
     currentVideo: null,
     lastRenderedTarget: NaN,
     raf: 0,
@@ -37,6 +38,7 @@
     showTimestamps: true,
     purpleMessages: true,
     hideScrollbar: false,
+    hideChatFrame: false,
     cleanChat: false,
     language: 'en',
     popupLoadFileName: '',
@@ -160,7 +162,7 @@
             </span>
           </label>
           <button id="tcs-offset-apply" class="tcs-mini-btn" type="button">Apply</button>
-          <div id="tcs-opacity-wrap"><span id="tcs-opacity-label">Opacity</span> <input id="tcs-opacity" type="range" min="25" max="100" step="1" value="94"><span id="tcs-opacity-value">94%</span></div>
+          <div id="tcs-opacity-wrap"><span id="tcs-opacity-label">Opacity</span> <input id="tcs-opacity" type="range" min="0" max="100" step="1" value="94"><span id="tcs-opacity-value">94%</span></div>
         </div>
         <div class="tcs-control-row">
           <input id="tcs-search" class="tcs-input" type="search" placeholder="Search chat to find a sync point…" spellcheck="false">
@@ -275,7 +277,8 @@
       setHideScrollbar($('tcs-hide-scrollbar').checked);
     });
     $('tcs-opacity').addEventListener('input', () => {
-      STATE.opacity = Math.max(25, Math.min(100, Number($('tcs-opacity').value) || 94));
+      const rawOpacity = Number($('tcs-opacity').value);
+      STATE.opacity = Number.isFinite(rawOpacity) ? Math.max(0, Math.min(100, rawOpacity)) : 94;
       applyOpacity();
       savePrefs();
       chrome.storage.local.set({opacity: STATE.opacity}).catch(() => {});
@@ -319,6 +322,7 @@
     overlay.classList.toggle('tcs-hide-timestamps', !STATE.showTimestamps);
     overlay.classList.toggle('tcs-purple-messages', STATE.purpleMessages);
     overlay.classList.toggle('tcs-hide-scrollbar', STATE.hideScrollbar);
+    overlay.classList.toggle('tcs-no-box', STATE.hideChatFrame);
     overlay.classList.toggle('tcs-clean', STATE.cleanChat);
     if ($('tcs-show-timestamps')) $('tcs-show-timestamps').checked = STATE.showTimestamps;
     if ($('tcs-purple-messages')) $('tcs-purple-messages').checked = STATE.purpleMessages;
@@ -327,7 +331,7 @@
   }
 
   function applyOpacity() {
-    const opacity = Math.max(0.25, Math.min(1, STATE.opacity / 100));
+    const opacity = Math.max(0, Math.min(1, STATE.opacity / 100));
     const overlay = $('tcs-overlay');
     if (!overlay) return;
 
@@ -356,19 +360,23 @@
       const saved = JSON.parse(localStorage.getItem('tcsPrefs') || '{}');
       if (Number.isFinite(saved.offset)) STATE.offset = saved.offset;
       if (Number.isFinite(saved.windowSeconds)) STATE.windowSeconds = saved.windowSeconds;
-      if (Number.isFinite(saved.opacity)) STATE.opacity = Math.max(25, Math.min(100, saved.opacity));
+      if (Number.isFinite(saved.opacity)) STATE.opacity = Math.max(0, Math.min(100, saved.opacity));
       if (typeof saved.showTimestamps === 'boolean') STATE.showTimestamps = saved.showTimestamps;
 
-      const chromeSaved = await chrome.storage.local.get({offset: null, opacity: null, showTimestamps: null, purpleMessages: null, hideScrollbar: null, cleanChat: null});
+      const chromeSaved = await chrome.storage.local.get({offset: null, opacity: null, splitColor: null, showTimestamps: null, purpleMessages: null, hideScrollbar: null, hideChatFrame: null, cleanChat: null});
       if (Number.isFinite(chromeSaved.offset)) STATE.offset = chromeSaved.offset;
-      if (Number.isFinite(chromeSaved.opacity)) STATE.opacity = Math.max(25, Math.min(100, chromeSaved.opacity));
+      if (Number.isFinite(chromeSaved.opacity)) STATE.opacity = Math.max(0, Math.min(100, chromeSaved.opacity));
       else chrome.storage.local.set({opacity: STATE.opacity}).catch(() => {});
+      if (/^#[0-9a-fA-F]{6}$/.test(String(chromeSaved.splitColor || ''))) STATE.splitColor = String(chromeSaved.splitColor).toLowerCase();
+      else chrome.storage.local.set({splitColor: STATE.splitColor}).catch(() => {});
       if (typeof chromeSaved.showTimestamps === 'boolean') STATE.showTimestamps = chromeSaved.showTimestamps;
       else chrome.storage.local.set({showTimestamps: STATE.showTimestamps}).catch(() => {});
       if (typeof chromeSaved.purpleMessages === 'boolean') STATE.purpleMessages = chromeSaved.purpleMessages;
       else chrome.storage.local.set({purpleMessages: STATE.purpleMessages}).catch(() => {});
       if (typeof chromeSaved.hideScrollbar === 'boolean') STATE.hideScrollbar = chromeSaved.hideScrollbar;
       else chrome.storage.local.set({hideScrollbar: STATE.hideScrollbar}).catch(() => {});
+      if (typeof chromeSaved.hideChatFrame === 'boolean') STATE.hideChatFrame = chromeSaved.hideChatFrame;
+      else chrome.storage.local.set({hideChatFrame: STATE.hideChatFrame}).catch(() => {});
       if (typeof chromeSaved.cleanChat === 'boolean') STATE.cleanChat = chromeSaved.cleanChat;
       else chrome.storage.local.set({cleanChat: STATE.cleanChat}).catch(() => {});
 
@@ -437,8 +445,15 @@
       applyDisplayPrefs();
     } catch {
       STATE.hideScrollbar = false;
+      STATE.hideChatFrame = false;
       applyDisplayPrefs();
     }
+  }
+
+  function setHideChatFrame(enabled, persist = true) {
+    STATE.hideChatFrame = !!enabled;
+    applyDisplayPrefs();
+    if (persist) chrome.storage.local.set({ hideChatFrame: STATE.hideChatFrame }).catch(() => {});
   }
 
   function setPurpleMessages(enabled, persist = true) {
@@ -456,10 +471,18 @@
   }
 
   function setOpacity(value, persist = true) {
-    STATE.opacity = Math.max(25, Math.min(100, Number(value) || 94));
+    const rawOpacity = Number(value);
+    STATE.opacity = Number.isFinite(rawOpacity) ? Math.max(0, Math.min(100, rawOpacity)) : 94;
     applyOpacity();
     savePrefs();
     if (persist) chrome.storage.local.set({ opacity: STATE.opacity }).catch(() => {});
+  }
+
+  function setSplitColor(value, persist = true) {
+    const color = /^#[0-9a-fA-F]{6}$/.test(String(value || '')) ? String(value).toLowerCase() : '#563e76';
+    STATE.splitColor = color;
+    applyPurpleMessageOpacity($('tcs-overlay'));
+    if (persist) chrome.storage.local.set({ splitColor: STATE.splitColor }).catch(() => {});
   }
 
   function setHideScrollbar(enabled, persist = true) {
@@ -481,6 +504,7 @@
         offset: STATE.offset,
         windowSeconds: STATE.windowSeconds,
         opacity: STATE.opacity,
+        splitColor: STATE.splitColor,
         showTimestamps: STATE.showTimestamps,
         left: Math.round(r.left),
         top: Math.round(r.top),
@@ -944,7 +968,7 @@ function getSavedOffsetFromText(text) {
     const frag = document.createDocumentFragment();
 
     for (let i = recentFrom; i < to; i++) {
-      frag.appendChild(renderComment(STATE.comments[i], (i - recentFrom) % 2 === 1));
+      frag.appendChild(renderComment(STATE.comments[i], i % 2 === 1));
     }
 
     if (to <= recentFrom) {
@@ -959,15 +983,17 @@ function getSavedOffsetFromText(text) {
     if (wasNearBottom) box.scrollTop = box.scrollHeight;
   }
 
-  function applyPurpleMessageOpacity(overlay, opacity = Math.max(0.25, Math.min(1, STATE.opacity / 100))) {
+  function applyPurpleMessageOpacity(overlay, opacity = Math.max(0, Math.min(1, STATE.opacity / 100))) {
     if (!overlay) return;
     const enabled = STATE.purpleMessages;
     const purpleAlpha = (0.28 * opacity).toFixed(3);
+    const color = /^#[0-9a-fA-F]{6}$/.test(String(STATE.splitColor || '')) ? STATE.splitColor : '#563e76';
+    const rgb = [1, 3, 5].map(i => parseInt(color.slice(i, i + 2), 16));
     overlay.querySelectorAll('.tcs-msg').forEach((msg) => {
       if (msg.classList.contains('tcs-alt') && enabled) {
         // Use an inline declaration so the dynamically-created chat rows
         // cannot fall back to the stylesheet's fixed purple opacity.
-        msg.style.setProperty('background-color', `rgba(86,62,118,${purpleAlpha})`, '');
+        msg.style.setProperty('background-color', `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${purpleAlpha})`, '');
       } else {
         // Clearing the inline value makes non-purple rows completely clear.
         msg.style.removeProperty('background-color');
@@ -1514,6 +1540,9 @@ function getSavedOffsetFromText(text) {
       STATE.showTimestamps = changes.showTimestamps.newValue !== false;
       applyDisplayPrefs(true);
     }
+    if (changes.hideChatFrame) {
+      setHideChatFrame(changes.hideChatFrame.newValue === true, false);
+    }
     if (changes.purpleMessages) {
       STATE.purpleMessages = changes.purpleMessages.newValue !== false;
       applyDisplayPrefs(true);
@@ -1522,10 +1551,13 @@ function getSavedOffsetFromText(text) {
       STATE.hideScrollbar = changes.hideScrollbar.newValue === true;
       applyDisplayPrefs();
     }
+    if (changes.splitColor) {
+      setSplitColor(changes.splitColor.newValue, false);
+    }
     if (changes.opacity) {
       const n = Number(changes.opacity.newValue);
       if (Number.isFinite(n)) {
-        STATE.opacity = Math.max(25, Math.min(100, n));
+        STATE.opacity = Math.max(0, Math.min(100, n));
         applyOpacity();
       }
     }
@@ -1552,6 +1584,11 @@ function getSavedOffsetFromText(text) {
       sendResponse?.({ ok: true, cleanChat: STATE.cleanChat });
       return true;
     }
+    if (msg?.action === 'set-hide-chat-frame') {
+      setHideChatFrame(msg.enabled);
+      sendResponse?.({ ok: true, hideChatFrame: STATE.hideChatFrame });
+      return true;
+    }
     if (msg?.action === 'set-purple-messages') {
       setPurpleMessages(msg.enabled === true);
       sendResponse?.({ ok: true, purpleMessages: STATE.purpleMessages });
@@ -1565,6 +1602,11 @@ function getSavedOffsetFromText(text) {
     if (msg?.action === 'set-show-timestamps') {
       setShowTimestamps(msg.enabled === true);
       sendResponse?.({ ok: true, showTimestamps: STATE.showTimestamps });
+      return true;
+    }
+    if (msg?.action === 'set-split-color') {
+      setSplitColor(msg.color);
+      sendResponse?.({ ok: true, splitColor: STATE.splitColor });
       return true;
     }
     if (msg?.action === 'set-opacity') {

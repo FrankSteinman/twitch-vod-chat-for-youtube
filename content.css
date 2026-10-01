@@ -6,6 +6,7 @@
   background:var(--tcs-panel-bg);color:#efeff1;border:0;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.55);font:14px/1.35 "Segoe UI",Arial,sans-serif;display:flex;flex-direction:column;overflow:hidden;
 }
 #tcs-overlay.tcs-hidden{display:none}
+#tcs-overlay.tcs-no-box{box-shadow:none!important}
 #tcs-overlay.tcs-settings-collapsed #tcs-head{border-bottom:0}
 #tcs-overlay.tcs-clean #tcs-head,#tcs-overlay.tcs-clean #tcs-controls,#tcs-overlay.tcs-clean #tcs-search-results{display:none}
 #tcs-overlay.tcs-settings-collapsed #tcs-chat{padding-top:10px}
