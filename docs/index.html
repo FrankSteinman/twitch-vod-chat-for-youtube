@@ -65,7 +65,7 @@ footer{padding:36px 0 54px;color:#787881;font-size:12px;text-align:center}
     <h1>Twitch VOD Chat for YouTube</h1>
     <p>Bring a Twitch VOD's chat replay back alongside a YouTube upload. Load the chat JSON locally, line it up with the video, and watch the conversation as the VOD plays.</p>
     <div class="actions">
-      <a class="btn primary" href="https://github.com/FrankSteinman/twitch-vod-chat-for-youtube/releases/download/v1.02/twitch-vod-chat-for-youtube-v1.02.zip">Download v1.02</a>
+      <a class="btn primary" href="https://github.com/FrankSteinman/twitch-vod-chat-for-youtube/releases/download/v1.03/twitch-vod-chat-for-youtube-v1.03.zip">Download v1.03</a>
       <a class="btn secondary" href="https://github.com/FrankSteinman/twitch-vod-chat-for-youtube">View on GitHub</a>
     </div>
     
@@ -128,6 +128,7 @@ footer{padding:36px 0 54px;color:#787881;font-size:12px;text-align:center}
       <article class="card"><h3>Eight languages</h3><p>The popup and overlay UI are translated for English, Spanish, French, Japanese, Korean, Portuguese, German, and Italian.</p></article>
       <article class="card"><h3>Popup + overlay controls</h3><p>Load chat, save offset, adjust synchronization, and change appearance from the Chrome toolbar popup. The same preferences stay synchronized with the in-page overlay.</p></article>
       <article class="card"><h3>Local processing</h3><p>Your Twitch chat JSON is processed in the browser. The extension has no account system, analytics, ads, or remote JavaScript.</p></article>
+      <article class="card"><h3>Video-page only</h3><p>The chat overlay only appears when you are viewing a YouTube video. It stays hidden while you browse other YouTube pages.</p></article>
       <article class="card"><h3>Simple installation</h3><p>Download the release ZIP, unzip it, enable Developer mode, and use “Load unpacked” in Chrome's extensions page.</p></article>
     </div>
   </div>
@@ -139,7 +140,7 @@ footer{padding:36px 0 54px;color:#787881;font-size:12px;text-align:center}
     <div class="steps">
       <div class="step-card"><div class="num">1</div><h3>Download</h3><p>Open the GitHub Releases page and download the latest <code>.zip</code> release.</p></div>
       <div class="step-card"><div class="num">2</div><h3>Load unpacked</h3><p>Unzip it, open <code>chrome://extensions</code>, turn on Developer mode, and choose <b>Load unpacked</b>.</p></div>
-      <div class="step-card"><div class="num">3</div><h3>Use on YouTube</h3><p>Open or refresh the YouTube watch page, then load your TwitchDownloader chat JSON through the extension toolbar.</p></div>
+      <div class="step-card"><div class="num">3</div><h3>Use on YouTube</h3><p>Open a YouTube video page, then load your TwitchDownloader chat JSON through the extension toolbar.</p></div>
     </div>
   </div>
 </section>
@@ -159,13 +160,14 @@ footer{padding:36px 0 54px;color:#787881;font-size:12px;text-align:center}
     <div class="faq">
       <details open><summary>Does the extension upload my chat JSON?</summary><p>No. The core chat file is loaded and processed locally in the browser. Third-party API requests are only used to retrieve public emote information when needed.</p></details>
       <details><summary>Does it collect analytics or require an account?</summary><p>No. There is no analytics system, advertising system, account system, or remote JavaScript execution in the extension.</p></details>
+      <details><summary>Why is it GitHub-only?</summary><p>The project is intended to stay free. GitHub provides the repository, source, releases, issue tracking, and GitHub Pages site in one place.</p></details>
     </div>
   </div>
 </section>
 </main>
 
 <footer>
-  <div class="container">Twitch VOD Chat for YouTube • Version 1.0.2 • Free and open source</div>
+  <div class="container">Twitch VOD Chat for YouTube • Version 1.03 • Free and open source</div>
 </footer>
 </body>
 </html>
