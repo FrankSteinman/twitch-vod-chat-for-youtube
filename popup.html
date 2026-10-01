@@ -15,6 +15,8 @@
     .step{width:28px;padding:6px 0!important}
     .offset-apply{padding:6px 8px}
     .file-status{color:#adadb8;font-size:11px;min-height:16px;margin:-2px 0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .twitch-row{display:grid;grid-template-columns:1fr auto;gap:8px;margin:0 0 10px}
+    .twitch-input{box-sizing:border-box;min-width:0;width:100%;background:#0e0e10;color:#efeff1;border:1px solid #46464f;border-radius:4px;padding:6px 7px}
     .language-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0}
     .language-row label{color:#adadb8;font-size:12px}
     select{box-sizing:border-box;min-width:165px;background:#0e0e10;color:#efeff1;border:1px solid #46464f;border-radius:4px;padding:5px 7px}
@@ -47,6 +49,10 @@
   <div class="top-actions">
     <button id="load-chat">Load chat</button>
     <button id="save-offset" class="secondary" disabled>Save offset</button>
+  </div>
+  <div class="twitch-row">
+    <input id="twitch-vod-id" class="twitch-input" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="Enter Twitch VOD ID or URL">
+    <button id="load-twitch-vod" type="button">Load Twitch VOD</button>
   </div>
   <div class="offset-row">
     <span id="offset-label" class="offset-label">Offset</span>

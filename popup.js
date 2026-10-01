@@ -64,6 +64,9 @@ function applyLanguage(lang) {
   const hideChatFrameLabel = L.popup.hideChatFrame || EN.popup.hideChatFrame;
   const loadChatLabel = L.popup.loadChat || EN.popup.loadChat;
   const saveOffsetLabel = L.popup.saveOffset || EN.popup.saveOffset;
+  const twitchVodLabel = L.popup.twitchVodId || EN.popup.twitchVodId;
+  const loadTwitchVodLabel = L.popup.loadTwitchVod || EN.popup.loadTwitchVod;
+  const twitchVodPlaceholder = L.popup.twitchVodPlaceholder || EN.popup.twitchVodPlaceholder;
   const offsetLabel = L.popup.offset || EN.popup.offset;
   const applyLabel = L.popup.apply || EN.popup.apply;
   document.getElementById('show-timestamps-label').textContent = showTimestampsLabel;
@@ -80,6 +83,9 @@ function applyLanguage(lang) {
   document.getElementById('hide-chat-frame').setAttribute('aria-label', hideChatFrameLabel);
   document.getElementById('load-chat').textContent = loadChatLabel;
   document.getElementById('save-offset').textContent = saveOffsetLabel;
+  document.getElementById('twitch-vod-id').placeholder = twitchVodPlaceholder;
+  document.getElementById('twitch-vod-id').setAttribute('aria-label', twitchVodLabel);
+  document.getElementById('load-twitch-vod').textContent = loadTwitchVodLabel;
   document.getElementById('offset-label').textContent = offsetLabel;
   document.getElementById('offset-apply').textContent = applyLabel;
 }
@@ -100,8 +106,8 @@ function setOffsetUI(value) {
   document.getElementById('offset').value = formatOffset(value);
 }
 
-function setFileState(hasChat, fileName='') {
-  document.getElementById('save-offset').disabled = !hasChat;
+function setFileState(hasChat, fileName='', twitchMode=false) {
+  document.getElementById('save-offset').disabled = !hasChat || twitchMode;
   document.getElementById('file-status').textContent = hasChat ? fileName : '';
 }
 
@@ -332,6 +338,8 @@ async function loadSettings() {
   setOffsetUI(saved.offset);
   applyLanguage(saved.language);
 
+  const twitchInput = document.getElementById('twitch-vod-id');
+
   const storedHandle = await getStoredChatHandle();
   if (storedHandle) {
     try {
@@ -344,7 +352,12 @@ async function loadSettings() {
   const state = await sendToContent({action:'get-state'});
   if (state?.ok) {
     if (state.hasChat && Number.isFinite(Number(state.offset))) setOffsetUI(Number(state.offset));
-    if (state.hasChat) setFileState(true, state.chatFileName || '');
+    if (state.twitchMode) {
+      twitchInput.value = state.twitchVodInput || state.twitchVodId || '';
+      if (state.hasChat) setFileState(true, state.chatFileName || '', true);
+    } else if (state.hasChat) {
+      setFileState(true, state.chatFileName || '', false);
+    }
   }
 }
 
@@ -392,6 +405,31 @@ async function setSplitColor(value) {
   document.getElementById('split-color').value = color;
   await chrome.storage.local.set({splitColor: color});
   await sendToContent({action:'set-split-color', color});
+}
+
+async function loadTwitchVodFromPopup() {
+  const input = document.getElementById('twitch-vod-id');
+  const value = String(input.value || '').trim();
+  await chrome.storage.local.set({twitchVodInput: value});
+  if (!value) {
+    document.getElementById('file-status').textContent = popupTr('twitchEnter');
+    return;
+  }
+
+  try {
+    const result = await sendToContent({action:'load-twitch-vod', vodId:value});
+    if (!result?.ok) {
+      document.getElementById('file-status').textContent = result?.error || popupTr('twitchLoadError');
+      return;
+    }
+    // Keep exactly what the user entered (ID or full URL) visible in the toolbar.
+    setFileState(!!result.hasChat, result.chatFileName || `Twitch VOD ${result.twitchVodId || value}`, true);
+    await sendToContent({action:'set-twitch-vod-input', value});
+    if (Number.isFinite(Number(result.offset))) setOffsetUI(Number(result.offset));
+  } catch (err) {
+    console.error(err);
+    document.getElementById('file-status').textContent = err.message || String(err);
+  }
 }
 
 async function applyOffset() {
@@ -459,6 +497,9 @@ document.getElementById('open').addEventListener('click', () => setChatVisibilit
 document.getElementById('hide').addEventListener('click', () => setChatVisibility(false));
 document.getElementById('load-chat').addEventListener('click', openChat);
 document.getElementById('save-offset').addEventListener('click', saveOffset);
+document.getElementById('load-twitch-vod').addEventListener('click', loadTwitchVodFromPopup);
+document.getElementById('twitch-vod-id').addEventListener('input', (e) => { chrome.storage.local.set({twitchVodInput: String(e.target.value || '')}).catch(() => {}); });
+document.getElementById('twitch-vod-id').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadTwitchVodFromPopup(); });
 document.getElementById('offset-apply').addEventListener('click', applyOffset);
 document.getElementById('offset').addEventListener('keydown', (e) => { if (e.key === 'Enter') applyOffset(); });
 function bindAcceleratingNudge(button, direction) {
@@ -574,7 +615,12 @@ chrome.storage.onChanged?.addListener(async (changes, areaName) => {
   const state = await sendToContent({action:'get-state'});
   if (state?.ok) {
     if (state.hasChat && Number.isFinite(Number(state.offset))) setOffsetUI(Number(state.offset));
-    setFileState(state.hasChat, state.chatFileName || '');
+    if (state.twitchMode) {
+      document.getElementById('twitch-vod-id').value = state.twitchVodInput || state.twitchVodId || '';
+      setFileState(state.hasChat, state.chatFileName || '', true);
+    } else {
+      setFileState(state.hasChat, state.chatFileName || '', false);
+    }
   }
 });
 

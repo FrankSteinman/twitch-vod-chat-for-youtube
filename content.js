@@ -44,7 +44,26 @@
     popupLoadFileName: '',
     videoObserverInterval: 0,
     syncHeartbeat: 0,
-    searchToken: 0
+    searchToken: 0,
+    twitchMode: false,
+    twitchVodId: '',
+    twitchVodInput: '',
+    twitchCommentIds: new Set(),
+    twitchFetchedAnchors: new Set(),
+    twitchMinTime: Infinity,
+    twitchMaxTime: -Infinity,
+    twitchLastAheadAnchor: -Infinity,
+    twitchForwardCursor: null,
+    twitchForwardCursorTime: -Infinity,
+    twitchCursorExhausted: false,
+    twitchFetching: false,
+    twitchFetchToken: 0,
+    twitchAbortController: null,
+    twitchSeekTimer: 0,
+    twitchLastVideoTime: NaN,
+    twitchPendingTarget: NaN,
+    twitchSeekSequence: 0,
+    twitchNextOffset: NaN
   };
 
   const $ = (id) => document.getElementById(id);
@@ -81,6 +100,20 @@
   }
 
   const I18N = globalThis.TCS_I18N;
+  const TWITCH_UI = {
+    en: { label: 'Twitch VOD ID', load: 'Load Twitch VOD', placeholder: 'Enter Twitch VOD ID or URL', enter: 'Enter a Twitch VOD ID first.', loading: 'Loading Twitch VOD chat…', fetching: 'Fetching Twitch chat…', noChat: 'No Twitch chat was found for this VOD.', loaded: '{count} messages fetched • {length} chat available', error: 'Twitch chat error: {error}' },
+    es: { label: 'ID del VOD de Twitch', load: 'Cargar VOD de Twitch', placeholder: 'Introduce el ID o la URL del VOD de Twitch', enter: 'Introduce primero un ID de VOD de Twitch.', loading: 'Cargando el chat del VOD de Twitch…', fetching: 'Cargando chat de Twitch…', noChat: 'No se encontró chat de Twitch para este VOD.', loaded: '{count} mensajes cargados • chat disponible hasta {length}', error: 'Error del chat de Twitch: {error}' },
+    fr: { label: 'ID du VOD Twitch', load: 'Charger le VOD Twitch', placeholder: 'Saisissez l’ID ou l’URL du VOD Twitch', enter: 'Saisissez d’abord un ID de VOD Twitch.', loading: 'Chargement du chat du VOD Twitch…', fetching: 'Chargement du chat Twitch…', noChat: 'Aucun chat Twitch trouvé pour ce VOD.', loaded: '{count} messages récupérés • chat disponible jusqu’à {length}', error: 'Erreur du chat Twitch : {error}' },
+    ja: { label: 'Twitch VOD ID', load: 'Twitch VOD を読み込む', placeholder: 'Twitch VOD ID または URL を入力', enter: 'まず Twitch VOD ID を入力してください。', loading: 'Twitch VOD チャットを読み込み中…', fetching: 'Twitch チャットを取得中…', noChat: 'この VOD の Twitch チャットが見つかりませんでした。', loaded: '{count} 件取得 • {length} までのチャットを利用可能', error: 'Twitch チャットエラー: {error}' },
+    ko: { label: 'Twitch VOD ID', load: 'Twitch VOD 불러오기', placeholder: 'Twitch VOD ID 또는 URL 입력', enter: '먼저 Twitch VOD ID를 입력하세요.', loading: 'Twitch VOD 채팅을 불러오는 중…', fetching: 'Twitch 채팅을 가져오는 중…', noChat: '이 VOD에서 Twitch 채팅을 찾을 수 없습니다.', loaded: '{count}개 메시지 가져옴 • {length}까지 채팅 사용 가능', error: 'Twitch 채팅 오류: {error}' },
+    pt: { label: 'ID do VOD da Twitch', load: 'Carregar VOD da Twitch', placeholder: 'Digite o ID ou a URL do VOD da Twitch', enter: 'Digite primeiro um ID de VOD da Twitch.', loading: 'Carregando o chat do VOD da Twitch…', fetching: 'Carregando o chat da Twitch…', noChat: 'Nenhum chat da Twitch foi encontrado para este VOD.', loaded: '{count} mensagens obtidas • chat disponível até {length}', error: 'Erro no chat da Twitch: {error}' },
+    de: { label: 'Twitch-VOD-ID', load: 'Twitch-VOD laden', placeholder: 'Twitch-VOD-ID oder URL eingeben', enter: 'Gib zuerst eine Twitch-VOD-ID ein.', loading: 'Twitch-VOD-Chat wird geladen…', fetching: 'Twitch-Chat wird geladen…', noChat: 'Für dieses VOD wurde kein Twitch-Chat gefunden.', loaded: '{count} Nachrichten geladen • Chat bis {length} verfügbar', error: 'Twitch-Chat-Fehler: {error}' },
+    it: { label: 'ID VOD Twitch', load: 'Carica VOD Twitch', placeholder: 'Inserisci l’ID o l’URL del VOD Twitch', enter: 'Inserisci prima un ID VOD Twitch.', loading: 'Caricamento della chat del VOD Twitch…', fetching: 'Caricamento della chat Twitch…', noChat: 'Non è stata trovata alcuna chat Twitch per questo VOD.', loaded: '{count} messaggi recuperati • chat disponibile fino a {length}', error: 'Errore della chat Twitch: {error}' }
+  };
+  function twitchTr(key, vars = {}) {
+    const text = TWITCH_UI[STATE.language]?.[key] || TWITCH_UI.en[key] || key;
+    return I18N?.format ? I18N.format(text, vars) : text.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
+  }
   function currentLang() { return I18N?.get(STATE.language) || I18N?.get('en'); }
   function tr(key, vars = {}) {
     const value = currentLang()?.[key];
@@ -117,6 +150,9 @@
     $('tcs-opacity-value').textContent = tr('opacityValue', {n: STATE.opacity});
     $('tcs-search').placeholder = tr('searchPlaceholder');
     $('tcs-search-btn').textContent = tr('search');
+    if ($('tcs-twitch-vod-label')) $('tcs-twitch-vod-label').textContent = twitchTr('label');
+    if ($('tcs-twitch-vod-id')) $('tcs-twitch-vod-id').placeholder = twitchTr('placeholder');
+    if ($('tcs-load-twitch')) $('tcs-load-twitch').textContent = twitchTr('load');
     $('tcs-search-clear').textContent = tr('clear');
     const collapsed = $('tcs-overlay').classList.contains('tcs-settings-collapsed');
     const minBtn = $('tcs-min');
@@ -152,6 +188,11 @@
           <span id="tcs-file-name" class="tcs-file-name">No chat file loaded</span>
           <button id="tcs-clear" class="tcs-mini-btn" type="button">Clear chat</button>
           <button id="tcs-save-json" class="tcs-mini-btn" type="button" title="Write the current offset directly into the loaded JSON file">Save offset to JSON</button>
+        </div>
+        <div class="tcs-control-row tcs-twitch-row">
+          <label id="tcs-twitch-vod-label" class="tcs-twitch-label" for="tcs-twitch-vod-id">Twitch VOD ID</label>
+          <input id="tcs-twitch-vod-id" class="tcs-input" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="Enter Twitch VOD ID or URL">
+          <button id="tcs-load-twitch" class="tcs-mini-btn" type="button">Load Twitch VOD</button>
         </div>
         <div class="tcs-control-row">
           <label><span id="tcs-offset-label">Offset</span>
@@ -190,7 +231,7 @@
       <div class="tcs-resize tcs-resize-tl" data-edge="tl"></div>
       <div class="tcs-resize tcs-resize-br" data-edge="br"></div>
       <div class="tcs-resize tcs-resize-bl" data-edge="bl"></div>`;
-    overlay.dataset.tcsVersion = '1.0.1';
+    overlay.dataset.tcsVersion = '1.1.0';
     document.body.appendChild(overlay);
 
     $('tcs-clear').addEventListener('click', clearChat);
@@ -287,6 +328,25 @@
     $('tcs-search-clear').addEventListener('click', clearSearch);
     $('tcs-search').addEventListener('keydown', (e) => { if (e.key === 'Enter') runSearch(); });
     $('tcs-file-btn').addEventListener('click', openChatFile);
+    const twitchVodInput = $('tcs-twitch-vod-id');
+    const syncTwitchVodInput = () => {
+      const value = safeText(twitchVodInput?.value).trim();
+      STATE.twitchVodInput = value;
+      chrome.storage.local.set({twitchVodInput: value}).catch(() => {});
+    };
+    $('tcs-load-twitch').addEventListener('click', () => {
+      syncTwitchVodInput();
+      loadTwitchVod(twitchVodInput?.value || STATE.twitchVodInput);
+    });
+    twitchVodInput.addEventListener('input', syncTwitchVodInput);
+    twitchVodInput.addEventListener('change', syncTwitchVodInput);
+    twitchVodInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        syncTwitchVodInput();
+        loadTwitchVod(twitchVodInput?.value || STATE.twitchVodInput);
+      }
+    });
     $('tcs-min').addEventListener('click', () => {
       const overlay = $('tcs-overlay');
       const controls = $('tcs-controls');
@@ -588,6 +648,30 @@ function getSavedOffsetFromText(text) {
     STATE.lastRenderedTarget = NaN;
     STATE.lastRenderedFrom = -1;
     STATE.lastRenderedTo = -1;
+    STATE.twitchMode = false;
+    STATE.twitchVodId = '';
+    STATE.twitchVodInput = '';
+    STATE.twitchCommentIds = new Set();
+    STATE.twitchFetchedAnchors = new Set();
+    STATE.twitchMinTime = Infinity;
+    STATE.twitchMaxTime = -Infinity;
+    STATE.twitchLastAheadAnchor = -Infinity;
+    STATE.twitchPendingTarget = NaN;
+    STATE.twitchNextOffset = NaN;
+    STATE.twitchSeekSequence++;
+    STATE.twitchForwardCursor = null;
+    STATE.twitchForwardCursorTime = -Infinity;
+    STATE.twitchCursorExhausted = false;
+    if (STATE.twitchAbortController) { try { STATE.twitchAbortController.abort(); } catch {} }
+    if (STATE.twitchSeekTimer) { clearTimeout(STATE.twitchSeekTimer); STATE.twitchSeekTimer = 0; }
+    STATE.twitchAbortController = null;
+    STATE.twitchFetching = false;
+    STATE.twitchLastVideoTime = NaN;
+    STATE.twitchPendingTarget = NaN;
+    STATE.twitchNextOffset = NaN;
+    STATE.twitchSeekSequence++;
+    STATE.twitchFetchToken++;
+    if ($('tcs-save-json')) $('tcs-save-json').disabled = false;
   }
 
   // Keep repeated high-cardinality metadata from allocating another copy per message.
@@ -604,6 +688,463 @@ function getSavedOffsetFromText(text) {
     if (cache.size >= limit) cache.clear();
     cache.set(str, str);
     return str;
+  }
+
+  const TWITCH_GQL_ENDPOINT = 'https://gql.twitch.tv/gql';
+  const TWITCH_ANDROID_CLIENT_ID = 'kd1unb4b3q4t58fwlpcbzcbnm76a8fp';
+  const TWITCH_VOD_COMMENTS_HASH = 'b70a3591ff0f4e0313d126c6a1502d79a1c02baebb288227c582044aa76adf6a';
+  const TWITCH_VOD_COMMENTS_QUERY = `
+    query VideoCommentsByOffsetOrCursor($videoID: ID!, $contentOffsetSeconds: Int, $cursor: Cursor) {
+      video(id: $videoID) {
+        id
+        creator { id channel { id } }
+        comments(contentOffsetSeconds: $contentOffsetSeconds, after: $cursor) {
+          edges {
+            cursor
+            node {
+              id
+              contentOffsetSeconds
+              commenter { id displayName login }
+              message {
+                fragments { text emote { emoteID } }
+                userBadges { setID version }
+                userColor
+              }
+            }
+          }
+          pageInfo { hasNextPage }
+        }
+      }
+    }`;
+
+  function normalizeTwitchVodId(value) {
+    // Accept either a plain numeric VOD ID or a Twitch VOD URL.
+    // Do not modify the user's input field; the original text should remain
+    // visible after loading.
+    const raw = safeText(value)
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .replace(/[\r\n]+/g, ' ')
+      .trim();
+    if (!raw) return '';
+
+    if (/^\d+$/.test(raw)) return raw;
+
+    // Handle normal Twitch VOD URLs, with or without a protocol and with
+    // optional path/query/fragment data after the VOD ID.
+    const directMatch = raw.match(/(?:https?:\/\/)?(?:www\.)?twitch\.tv\/(?:[^\s/]+\/)?videos\/(\d+)(?:[/?#].*)?$/i);
+    if (directMatch) return directMatch[1];
+
+    try {
+      const url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+      const host = url.hostname.toLowerCase();
+      if (host !== 'twitch.tv' && !host.endsWith('.twitch.tv')) return '';
+      const parts = url.pathname.split('/').filter(Boolean);
+      const videosIndex = parts.findIndex(part => part.toLowerCase() === 'videos');
+      if (videosIndex !== -1 && /^\d+$/.test(parts[videosIndex + 1] || '')) {
+        return parts[videosIndex + 1];
+      }
+    } catch {}
+
+    // Last fallback for pasted text containing /videos/<id>.
+    const m = raw.match(/(?:^|\/|\s)videos\/(\d+)(?:[/?#\s]|$)/i);
+    return m ? m[1] : '';
+  }
+
+  function twitchGqlBody(videoId, offsetSeconds = null, inline = false, cursor = null) {
+    const variables = { videoID: videoId };
+    if (cursor) variables.cursor = cursor;
+    else variables.contentOffsetSeconds = Math.max(0, Math.floor(Number(offsetSeconds) || 0));
+    if (inline) return { operationName: 'VideoCommentsByOffsetOrCursor', query: TWITCH_VOD_COMMENTS_QUERY, variables };
+    return { operationName: 'VideoCommentsByOffsetOrCursor', variables, extensions: { persistedQuery: { version: 1, sha256Hash: TWITCH_VOD_COMMENTS_HASH } } };
+  }
+
+  async function twitchGqlRequest(body, signal = null) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    const onAbort = () => { try { controller.abort(); } catch {} };
+    if (signal) {
+      if (signal.aborted) onAbort();
+      else signal.addEventListener('abort', onAbort, { once: true });
+    }
+    try {
+      const response = await fetch(TWITCH_GQL_ENDPOINT, {
+        method: 'POST',
+        mode: 'cors',
+        credentials: 'omit',
+        headers: { 'Client-ID': TWITCH_ANDROID_CLIENT_ID, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal
+      });
+      const text = await response.text();
+      let json;
+      try { json = JSON.parse(text); } catch { throw new Error(`Twitch returned invalid JSON (HTTP ${response.status}).`); }
+      if (!response.ok) throw new Error(`Twitch returned HTTP ${response.status}.`);
+      return Array.isArray(json) ? json[0] : json;
+    } catch (err) {
+      if (err?.name === 'AbortError') throw new Error('Twitch request timed out.');
+      throw err;
+    } finally {
+      clearTimeout(timer);
+      if (signal) { try { signal.removeEventListener('abort', onAbort); } catch {} }
+    }
+  }
+
+  function twitchApiError(json) {
+    if (!Array.isArray(json?.errors) || !json.errors.length) return '';
+    return json.errors.map(e => safeText(e?.message)).filter(Boolean).join(' / ');
+  }
+
+  async function fetchTwitchVodPage(videoId, offsetSeconds = null, cursor = null, signal = null) {
+    let json = await twitchGqlRequest(twitchGqlBody(videoId, offsetSeconds, false, cursor), signal);
+    const firstError = twitchApiError(json);
+    if (/PersistedQueryNotFound|persisted query/i.test(firstError)) {
+      json = await twitchGqlRequest(twitchGqlBody(videoId, offsetSeconds, true, cursor), signal);
+    }
+    const error = twitchApiError(json);
+    if (error) throw new Error(error);
+    const video = json?.data?.video;
+    if (!video) throw new Error('Twitch VOD not found or unavailable.');
+    const conn = video.comments;
+    if (!conn) return { comments: [], channelId: video?.creator?.channel?.id || '', noChat: true, nextCursor: null, hasNextPage: false };
+
+    const comments = [];
+    let lastCursor = null;
+    for (const edge of (Array.isArray(conn.edges) ? conn.edges : [])) {
+      lastCursor = safeText(edge?.cursor) || lastCursor;
+      const node = edge?.node;
+      if (!node?.id) continue;
+      const t = Number(node.contentOffsetSeconds);
+      if (!Number.isFinite(t)) continue;
+      const commenter = node.commenter || {};
+      const message = node.message || {};
+      const fragments = Array.isArray(message.fragments) ? message.fragments : [];
+      let body = '';
+      const emotes = [];
+      let cursorPos = 0;
+      for (const fragment of fragments) {
+        const part = safeText(fragment?.text);
+        const emoteId = safeText(fragment?.emote?.emoteID);
+        if (emoteId) emotes.push([cursorPos, cursorPos + part.length, emoteId]);
+        body += part;
+        cursorPos += part.length;
+      }
+      comments.push({
+        id: safeText(node.id),
+        t,
+        user: internString(commenter.displayName || commenter.login || tr('anonymous'), userStringCache),
+        color: internString(message.userColor || '#a970ff', colorStringCache, 256),
+        body,
+        emotes: emotes.length ? emotes : null
+      });
+    }
+
+    return {
+      comments,
+      channelId: safeText(video?.creator?.channel?.id || ''),
+      noChat: false,
+      nextCursor: conn.pageInfo?.hasNextPage ? lastCursor : null,
+      hasNextPage: conn.pageInfo?.hasNextPage === true
+    };
+  }
+
+  function rebuildTwitchTimes() {
+    if (!STATE.comments.length) {
+      STATE.times = new Float64Array(0);
+      STATE.twitchMinTime = Infinity;
+      STATE.twitchMaxTime = -Infinity;
+      return;
+    }
+
+    // Cursor pages normally arrive in time order, but offset-based fetches can
+    // overlap or arrive out of order. Keep one sorted array so the existing
+    // binary-search renderer can use the same data structure as JSON chat.
+    STATE.comments.sort((a, b) => a.t - b.t);
+    STATE.times = new Float64Array(STATE.comments.length);
+    for (let i = 0; i < STATE.comments.length; i++) {
+      STATE.times[i] = STATE.comments[i].t;
+    }
+    STATE.twitchMinTime = STATE.times[0];
+    STATE.twitchMaxTime = STATE.times[STATE.times.length - 1];
+  }
+
+  function mergeTwitchResult(result) {
+    let added = 0;
+    for (const comment of result.comments || []) {
+      if (STATE.twitchCommentIds.has(comment.id)) continue;
+      STATE.twitchCommentIds.add(comment.id);
+      STATE.comments.push(comment);
+      added++;
+    }
+    if (result.channelId && !STATE.firstChannelId) {
+      STATE.firstChannelId = result.channelId;
+      loadExternalEmotes().catch(err => console.debug('Third-party emote load failed:', err));
+    }
+    rebuildTwitchTimes();
+    STATE.lastRenderedFrom = -1;
+    STATE.lastRenderedTo = -1;
+    render(true);
+    return added;
+  }
+
+  function cancelTwitchFetch(invalidate = true) {
+    if (invalidate) STATE.twitchFetchToken++;
+    if (STATE.twitchAbortController) {
+      try { STATE.twitchAbortController.abort(); } catch {}
+    }
+    STATE.twitchAbortController = null;
+    STATE.twitchFetching = false;
+  }
+
+  function resetTwitchForwardCursor() {
+    STATE.twitchForwardCursor = null;
+    STATE.twitchForwardCursorTime = -Infinity;
+    STATE.twitchCursorExhausted = false;
+  }
+
+  async function fetchTwitchAround(anchorSeconds, force = false) {
+    if (!STATE.twitchMode || !STATE.twitchVodId || STATE.twitchFetching) return false;
+    const anchor = Math.max(0, Math.floor(Number(anchorSeconds) || 0));
+    const anchorKey = Math.floor(anchor / 30);
+    if (!force && STATE.twitchFetchedAnchors.has(anchorKey)) return false;
+
+    const token = STATE.twitchFetchToken;
+    const controller = new AbortController();
+    STATE.twitchAbortController = controller;
+    STATE.twitchFetching = true;
+    STATE.twitchFetchedAnchors.add(anchorKey);
+    if ($('tcs-status')) $('tcs-status').textContent = twitchTr('fetching');
+    try {
+      const result = await fetchTwitchVodPage(STATE.twitchVodId, anchor, null, controller.signal);
+      if (!STATE.twitchMode || token !== STATE.twitchFetchToken) return false;
+      const added = mergeTwitchResult(result);
+
+      // Every offset-based fetch creates a fresh forward chain for this part
+      // of the VOD. This is especially important after a long YouTube seek.
+      const pageEnd = (result.comments || []).reduce(
+        (max, comment) => Math.max(max, Number(comment?.t)),
+        -Infinity
+      );
+      resetTwitchForwardCursor();
+      STATE.twitchForwardCursorTime = Number.isFinite(pageEnd) ? pageEnd : -Infinity;
+      STATE.twitchNextOffset = Number.isFinite(pageEnd) ? pageEnd + 1 : anchor + 30;
+      STATE.twitchCursorExhausted = true;
+
+      STATE.twitchLastAheadAnchor = anchor;
+      if (!STATE.comments.length && result.noChat) {
+        if ($('tcs-status')) $('tcs-status').textContent = twitchTr('noChat');
+      } else if (STATE.comments.length) {
+        if ($('tcs-status')) $('tcs-status').textContent = twitchTr('loaded', {count: localizedNumber(STATE.comments.length), length: formatTime(STATE.twitchMaxTime, true)});
+      }
+      return added > 0 || result.noChat;
+    } catch (err) {
+      if (token !== STATE.twitchFetchToken || err?.name === 'AbortError') return false;
+      STATE.twitchFetchedAnchors.delete(anchorKey);
+      console.error('Twitch VOD chat fetch failed:', err);
+      if ($('tcs-status')) $('tcs-status').textContent = twitchTr('error', {error: err?.message || String(err)});
+      return false;
+    } finally {
+      if (token === STATE.twitchFetchToken) {
+        STATE.twitchFetching = false;
+        if (STATE.twitchAbortController === controller) STATE.twitchAbortController = null;
+      }
+    }
+  }
+
+  async function fetchTwitchForwardUntil(desiredTime) {
+    if (!STATE.twitchMode || !STATE.twitchVodId || STATE.twitchFetching) return false;
+    const desired = Math.max(0, Number(desiredTime) || 0);
+
+    const token = STATE.twitchFetchToken;
+    const controller = new AbortController();
+    STATE.twitchAbortController = controller;
+    STATE.twitchFetching = true;
+    if ($('tcs-status')) $('tcs-status').textContent = twitchTr('fetching');
+    let changed = false;
+    try {
+      // Use timestamp-based pagination for the progressive path instead of
+      // carrying a Twitch cursor across playback seeks. A cursor belongs to
+      // one forward position; offset requests are independent and remain
+      // reliable after large jumps in the YouTube video.
+      if (!Number.isFinite(STATE.twitchNextOffset)) {
+        STATE.twitchNextOffset = Math.max(0, desired - 60);
+      }
+
+      let requestCount = 0;
+      const maxRequests = 16;
+      let lastRequestedOffset = -1;
+
+      while (
+        STATE.twitchMode &&
+        token === STATE.twitchFetchToken &&
+        requestCount < maxRequests &&
+        (!Number.isFinite(STATE.twitchForwardCursorTime) || STATE.twitchForwardCursorTime < desired)
+      ) {
+        let anchor = Math.max(0, Math.floor(STATE.twitchNextOffset));
+        if (anchor <= lastRequestedOffset) anchor = lastRequestedOffset + 1;
+        lastRequestedOffset = anchor;
+
+        const result = await fetchTwitchVodPage(STATE.twitchVodId, anchor, null, controller.signal);
+        if (!STATE.twitchMode || token !== STATE.twitchFetchToken) return changed;
+        requestCount++;
+        const added = mergeTwitchResult(result);
+        changed = changed || added > 0;
+
+        const pageEnd = (result.comments || []).reduce(
+          (max, comment) => Math.max(max, Number(comment?.t)),
+          -Infinity
+        );
+        if (Number.isFinite(pageEnd) && pageEnd >= anchor) {
+          STATE.twitchForwardCursorTime = Math.max(
+            Number.isFinite(STATE.twitchForwardCursorTime) ? STATE.twitchForwardCursorTime : -Infinity,
+            pageEnd
+          );
+          STATE.twitchNextOffset = pageEnd + 1;
+        } else {
+          // The offset request must always move forward. Do not skip the rest
+          // of the current 30-second bucket: a later request may legitimately
+          // start in that same bucket and contain different comments.
+          STATE.twitchNextOffset = anchor + 1;
+        }
+
+        if (!result.comments?.length) break;
+        if (!result.hasNextPage) break;
+      }
+
+      if (STATE.twitchMode && token === STATE.twitchFetchToken && $('tcs-status') && STATE.comments.length) {
+        $('tcs-status').textContent = twitchTr('loaded', {count: localizedNumber(STATE.comments.length), length: formatTime(STATE.twitchMaxTime, true)});
+      }
+      return changed;
+    } catch (err) {
+      if (token !== STATE.twitchFetchToken || err?.name === 'AbortError') return changed;
+      console.error('Twitch VOD forward fetch failed:', err);
+      if ($('tcs-status')) $('tcs-status').textContent = twitchTr('error', {error: err?.message || String(err)});
+      return changed;
+    } finally {
+      if (token === STATE.twitchFetchToken) {
+        STATE.twitchFetching = false;
+        if (STATE.twitchAbortController === controller) STATE.twitchAbortController = null;
+      }
+    }
+  }
+
+  async function startTwitchProgressiveFetching() {
+    if (!STATE.twitchMode || !STATE.twitchVodId) return;
+    const video = findVideo();
+    if (!video) { setStatus('noVideo'); return; }
+    const target = Math.max(0, video.currentTime + STATE.offset);
+    const token = STATE.twitchFetchToken;
+    await fetchTwitchAround(Math.max(0, target - 60));
+    if (!STATE.twitchMode || token !== STATE.twitchFetchToken) return;
+    await fetchTwitchForwardUntil(target + 90);
+  }
+
+  function maybeFetchTwitchAhead() {
+    if (!STATE.twitchMode || !STATE.twitchVodId || STATE.twitchFetching) return;
+    const video = STATE.currentVideo || findVideo();
+    if (!video || video.paused || video.ended) return;
+    const target = Math.max(0, video.currentTime + STATE.offset);
+    const desired = target + 90;
+
+    if (!Number.isFinite(STATE.twitchForwardCursorTime) || STATE.twitchForwardCursorTime < desired) {
+      fetchTwitchForwardUntil(desired).catch(() => {});
+    }
+  }
+
+  function maybeFetchTwitchForSeek() {
+    if (!STATE.twitchMode || !STATE.twitchVodId) return;
+    const video = STATE.currentVideo || findVideo();
+    if (!video) return;
+
+    STATE.twitchPendingTarget = Math.max(0, video.currentTime + STATE.offset);
+    STATE.twitchSeekSequence++;
+    const sequence = STATE.twitchSeekSequence;
+
+    if (STATE.twitchSeekTimer) clearTimeout(STATE.twitchSeekTimer);
+    STATE.twitchSeekTimer = setTimeout(async () => {
+      STATE.twitchSeekTimer = 0;
+      if (!STATE.twitchMode || !STATE.twitchVodId || sequence !== STATE.twitchSeekSequence) return;
+
+      const currentVideo = STATE.currentVideo || findVideo();
+      if (!currentVideo) return;
+      const target = Math.max(0, currentVideo.currentTime + STATE.offset);
+      STATE.twitchPendingTarget = target;
+
+      // A seek gets its own fresh fetch chain. Do not let a cursor from an old
+      // part of the VOD decide what happens after a long jump.
+      cancelTwitchFetch(true);
+      resetTwitchForwardCursor();
+      STATE.twitchNextOffset = NaN;
+
+      // Force the anchor fetch even if this 30-second bucket was visited before.
+      // A previously visited bucket may only contain a partial page, and the
+      // old global min/max range cannot prove that the exact seek position is
+      // covered.
+      const anchor = Math.max(0, target - 60);
+
+      // Always re-anchor on a seek, even if the target falls inside the
+      // already-loaded min/max range. Progressive fetching can contain gaps,
+      // so the range alone does not prove the exact seek position is covered.
+      const fetchToken = STATE.twitchFetchToken;
+      await fetchTwitchAround(anchor, true);
+      if (!STATE.twitchMode || !STATE.twitchVodId || fetchToken !== STATE.twitchFetchToken) return;
+
+      const latestVideo = STATE.currentVideo || findVideo();
+      if (!latestVideo) return;
+      const latestTarget = Math.max(0, latestVideo.currentTime + STATE.offset);
+      if (Math.abs(latestTarget - target) > 4) {
+        // The user moved again while the network request was in flight.
+        maybeFetchTwitchForSeek();
+        return;
+      }
+
+      await fetchTwitchForwardUntil(latestTarget + 90);
+    }, 120);
+  }
+
+  async function loadTwitchVod(vodValue = null) {
+    let inputValue = safeText(vodValue ?? $('tcs-twitch-vod-id')?.value).trim();
+    if (!inputValue) inputValue = safeText(STATE.twitchVodInput).trim();
+    if (!inputValue) {
+      try {
+        const stored = await chrome.storage.local.get({twitchVodInput: ''});
+        inputValue = safeText(stored.twitchVodInput).trim();
+      } catch {}
+    }
+    const id = normalizeTwitchVodId(inputValue);
+    if (!id) {
+      if ($('tcs-status')) $('tcs-status').textContent = twitchTr('enter');
+      return {ok:false, error:twitchTr('enter')};
+    }
+    const video = findVideo();
+    if (!video) { setStatus('noVideo'); return {ok:false, error:tr('noVideo')}; }
+
+    cancelTwitchFetch(true);
+    resetChatStateForLoad(`Twitch VOD ${id}`);
+    STATE.twitchMode = true;
+    STATE.twitchVodId = id;
+    STATE.twitchVodInput = inputValue;
+    if ($('tcs-twitch-vod-id')) $('tcs-twitch-vod-id').value = inputValue;
+    chrome.storage.local.set({twitchVodInput: inputValue}).catch(() => {});
+    STATE.twitchFetchToken++;
+    STATE.chatFileHandle = null;
+    STATE.chatFileName = `Twitch VOD ${id}`;
+    if ($('tcs-file-name')) $('tcs-file-name').textContent = STATE.chatFileName;
+    if ($('tcs-title')) $('tcs-title').textContent = `Twitch VOD Chat — ${id}`;
+    if ($('tcs-save-json')) $('tcs-save-json').disabled = true;
+    if ($('tcs-status')) $('tcs-status').textContent = twitchTr('loading');
+    if ($('tcs-chat')) $('tcs-chat').innerHTML = `<div class="tcs-system">${twitchTr('loading')}</div>`;
+    STATE.lastRenderedFrom = -1;
+    STATE.lastRenderedTo = -1;
+    clearSearch();
+    await startTwitchProgressiveFetching();
+    return {
+      ok: STATE.twitchMode && STATE.twitchVodId === id && STATE.comments.length > 0,
+      hasChat: STATE.comments.length > 0,
+      twitchVodId: id,
+      twitchVodInput: STATE.twitchVodInput || inputValue,
+      chatFileName: STATE.chatFileName || `Twitch VOD ${id}`,
+      offset: STATE.offset
+    };
   }
 
   function normalizeCommentObject(c) {
@@ -777,6 +1318,9 @@ function getSavedOffsetFromText(text) {
 
     if (parser.needsSort) parser.comments.sort((a, b) => a.t - b.t);
     STATE.comments = parser.comments;
+    STATE.twitchMode = false;
+    STATE.twitchVodId = '';
+    if ($('tcs-save-json')) $('tcs-save-json').disabled = false;
     STATE.times = new Float64Array(parser.comments.length);
     for (let i = 0; i < parser.comments.length; i++) STATE.times[i] = parser.comments[i].t;
     STATE.firstChannelId = parser.channelId;
@@ -923,6 +1467,26 @@ function getSavedOffsetFromText(text) {
     STATE.extChannelId = '';
     STATE.extEmoteRegex = null;
     STATE.firstChannelId = '';
+    STATE.twitchMode = false;
+    STATE.twitchVodId = '';
+    STATE.twitchVodInput = '';
+    STATE.twitchCommentIds = new Set();
+    STATE.twitchFetchedAnchors = new Set();
+    STATE.twitchMinTime = Infinity;
+    STATE.twitchMaxTime = -Infinity;
+    STATE.twitchLastAheadAnchor = -Infinity;
+    STATE.twitchPendingTarget = NaN;
+    STATE.twitchNextOffset = NaN;
+    STATE.twitchSeekSequence++;
+    STATE.twitchForwardCursor = null;
+    STATE.twitchForwardCursorTime = -Infinity;
+    STATE.twitchCursorExhausted = false;
+    if (STATE.twitchAbortController) { try { STATE.twitchAbortController.abort(); } catch {} }
+    if (STATE.twitchSeekTimer) { clearTimeout(STATE.twitchSeekTimer); STATE.twitchSeekTimer = 0; }
+    STATE.twitchAbortController = null;
+    STATE.twitchFetching = false;
+    STATE.twitchFetchToken++;
+    if ($('tcs-save-json')) $('tcs-save-json').disabled = true;
     STATE.lastRenderedTarget = NaN;
     STATE.lastRenderedFrom = -1;
     STATE.lastRenderedTo = -1;
@@ -1404,7 +1968,20 @@ function getSavedOffsetFromText(text) {
   function attachVideoListeners(video) {
     if (!video || video.__tcsHandlers) return video;
     const renderTick = () => {
-      try { ensureUI(); render(false); }
+      try {
+        ensureUI();
+        if (STATE.twitchMode && STATE.twitchVodId) {
+          const now = Number(video.currentTime);
+          const previous = STATE.twitchLastVideoTime;
+          // Some YouTube keyboard jumps can change currentTime without giving us
+          // a useful seek event. Detect a larger-than-normal time jump here too.
+          if (Number.isFinite(now) && Number.isFinite(previous) && Math.abs(now - previous) > 2.5) {
+            maybeFetchTwitchForSeek();
+          }
+          STATE.twitchLastVideoTime = now;
+        }
+        render(false);
+      }
       catch (err) { console.debug('Twitch VOD Chat for YouTube render error:', err); }
     };
     const forceTick = () => {
@@ -1413,8 +1990,8 @@ function getSavedOffsetFromText(text) {
     };
     const handlers = [
       ['timeupdate', renderTick],
-      ['seeked', forceTick],
-      ['seeking', forceTick],
+      ['seeked', () => { forceTick(); maybeFetchTwitchForSeek(); }],
+      ['seeking', () => { forceTick(); maybeFetchTwitchForSeek(); }],
       ['play', forceTick],
       ['playing', forceTick],
       ['ratechange', forceTick],
@@ -1424,6 +2001,7 @@ function getSavedOffsetFromText(text) {
     ];
     for (const [event, handler] of handlers) video.addEventListener(event, handler, {passive: true});
     video.__tcsHandlers = handlers;
+    STATE.twitchLastVideoTime = Number.isFinite(Number(video.currentTime)) ? Number(video.currentTime) : NaN;
     try { render(true); } catch (err) { console.debug('Twitch VOD Chat for YouTube initial render error:', err); }
     return video;
   }
@@ -1454,7 +2032,10 @@ function getSavedOffsetFromText(text) {
       STATE.syncHeartbeat = setInterval(() => {
         try {
           const video = STATE.currentVideo;
-          if (video && !video.paused && !video.ended) render(false);
+          if (video && !video.paused && !video.ended) {
+            render(false);
+            maybeFetchTwitchAhead();
+          }
         } catch (err) { console.debug('Twitch VOD Chat for YouTube sync heartbeat error:', err); }
       }, 250);
     }
@@ -1577,6 +2158,12 @@ function getSavedOffsetFromText(text) {
       STATE.language = I18N?.languages?.[changes.language.newValue] ? changes.language.newValue : 'en';
       applyLanguage();
     }
+    if (changes.twitchVodInput) {
+      const value = safeText(changes.twitchVodInput.newValue).trim();
+      STATE.twitchVodInput = value;
+      const input = $('tcs-twitch-vod-id');
+      if (input && document.activeElement !== input) input.value = value;
+    }
   });
 
   chrome.runtime.onMessage?.addListener((msg, _sender, sendResponse) => {
@@ -1626,12 +2213,24 @@ function getSavedOffsetFromText(text) {
       sendResponse?.({ ok: true, opacity: STATE.opacity });
       return true;
     }
+    if (msg?.action === 'set-twitch-vod-input') {
+      const value = safeText(msg.value).trim();
+      STATE.twitchVodInput = value;
+      const input = $('tcs-twitch-vod-id');
+      if (input) input.value = value;
+      chrome.storage.local.set({twitchVodInput: value}).catch(() => {});
+      sendResponse?.({ ok: true, twitchVodInput: value });
+      return true;
+    }
     if (msg?.action === 'get-state') {
       sendResponse?.({
         ok: true,
         offset: STATE.offset,
         hasChat: STATE.comments.length > 0,
-        chatFileName: STATE.chatFileName || ''
+        chatFileName: STATE.chatFileName || '',
+        twitchMode: STATE.twitchMode,
+        twitchVodId: STATE.twitchVodId || '',
+        twitchVodInput: STATE.twitchVodInput || ''
       });
       return true;
     }
@@ -1681,6 +2280,10 @@ function getSavedOffsetFromText(text) {
     }
     if (msg?.action === 'load-chat-complete') {
       finishStreamingLoad().then(result => sendResponse?.({ok:true, ...result})).catch(err => sendResponse?.({ok:false, error:err.message || String(err)}));
+      return true;
+    }
+    if (msg?.action === 'load-twitch-vod') {
+      loadTwitchVod(msg.vodId).then(result => sendResponse?.(result || {ok:false})).catch(err => sendResponse?.({ok:false, error:err?.message || String(err)}));
       return true;
     }
     if (msg?.action === 'save-offset') {
