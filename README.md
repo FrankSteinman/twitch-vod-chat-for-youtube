@@ -64,7 +64,7 @@ Chat files are processed locally in the browser. The extension does not require 
 
 See `PRIVACY.md` for more information.
 
-## Version
+## Current Version
 
 **1.03**
 
