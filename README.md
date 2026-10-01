@@ -1,6 +1,6 @@
- # Twitch VOD Chat for YouTube
+# Twitch VOD Chat for YouTube
 
-[Español](README.es.md)
+Leer en [Español](README.es.md)
 
 A Chrome extension that allows you to display Twitch VOD chats on YouTube.
 
