@@ -43,7 +43,7 @@ Después de instalar o actualizar la extensión, actualiza las pestañas de YouT
 
 ## Cómo usar la extensión
 
-Puedes introducir la URL del VOD de Twitch o cargar archivo JSON del chat de Twitch desde el icono de la extensión o desde el propio chat. La extensión sincronizará el chat con la posición actual del vídeo de YouTube.
+Puedes introducir la URL del VOD de Twitch o cargar un archivo JSON del chat de Twitch desde el icono de la extensión o desde el propio chat. La extensión sincronizará el chat con la posición actual del vídeo de YouTube.
 
 Usa los controles de **Desfase** para ajustar la sincronización. Un desfase positivo hace que el chat de Twitch mostrado avance con respecto al vídeo de YouTube.
 
