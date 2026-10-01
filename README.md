@@ -56,7 +56,7 @@ The downloaded JSON can then be loaded directly into the extension.
 
 [Visit the website](https://franksteinman.github.io/twitch-vod-chat-for-youtube/)
 
-The website has screenshots and a more detailed overview of the extension's features.
+The website describes features but it isn't really any new information not already above. 
 
 ## Privacy
 
