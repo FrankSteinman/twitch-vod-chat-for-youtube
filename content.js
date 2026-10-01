@@ -410,10 +410,16 @@
     }
   }
 
+  function isYouTubeVideoPage() {
+    const path = location.pathname;
+    return path === '/watch' && new URLSearchParams(location.search).has('v');
+  }
+
   function applyChatVisibility() {
     const overlay = $('tcs-overlay');
     if (!overlay) return;
-    overlay.classList.toggle('tcs-hidden', !STATE.chatVisible);
+    const visible = STATE.chatVisible && isYouTubeVideoPage();
+    overlay.classList.toggle('tcs-hidden', !visible);
   }
 
   async function loadCleanChat() {
@@ -1425,6 +1431,11 @@ function getSavedOffsetFromText(text) {
   function startVideoObserver() {
     ensureUI();
     findVideo();
+    applyChatVisibility();
+
+    window.addEventListener('yt-navigate-start', applyChatVisibility);
+    window.addEventListener('yt-navigate-finish', applyChatVisibility);
+    window.addEventListener('popstate', applyChatVisibility);
 
     if (!STATE.videoObserverInterval) {
       // YouTube can replace its <video> element during navigation/quality changes.
@@ -1432,6 +1443,7 @@ function getSavedOffsetFromText(text) {
         try {
           ensureUI();
           findVideo();
+          applyChatVisibility();
         } catch (err) { console.debug('Twitch VOD Chat for YouTube video observer error:', err); }
       }, 2000);
     }
