@@ -31,7 +31,7 @@ Una extensión de Chrome que permite mostrar chats de VOD de Twitch en YouTube.
 
 Esta extensión se distribuye como una extensión de Chrome sin empaquetar.
 
-1. Descarga el ZIP más reciente de la sección **Releases**.
+1. Descarga el ZIP más reciente de la sección [**Releases**](https://github.com/FrankSteinman/twitch-vod-chat-for-youtube/releases).
 2. Extrae el ZIP en algún lugar de tu ordenador.
 3. Abre `chrome://extensions` en Chrome.
 4. Activa el **modo de desarrollador**.
