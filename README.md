@@ -1,5 +1,3 @@
-<img width="128" height="128" alt="icon128" src="https://github.com/user-attachments/assets/a44ae223-94d3-45eb-900b-c7541fe2e534" />
- 
  # Twitch VOD Chat for YouTube
 
 A Chrome extension that allows you to display Twitch VOD chats on YouTube.
