@@ -1,4 +1,4 @@
-<img width="1254" height="1254" alt="ChatGPT Image Sep 29, 2026, 02_45_02 PM" src="https://github.com/user-attachments/assets/e3399b84-6297-4d17-b367-fae9668f8832" /> # Twitch VOD Chat for YouTube
+<img width="128" height="128" alt="icon128" src="https://github.com/user-attachments/assets/fbc7d2fc-b394-49e6-aaa6-eab36a479256" /> #Twitch VOD Chat for YouTube
 
 A Chrome extension that allows you to display Twitch VOD chats on YouTube.
 
