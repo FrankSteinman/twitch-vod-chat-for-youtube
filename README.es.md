@@ -2,7 +2,7 @@
 
 Una extensión de Chrome que permite mostrar chats de VOD de Twitch en YouTube.
 
-[English](README.md) | **Español**
+[English](README.md)
 
 <img width="2538" height="1360" alt="2026-09-30 04-28-35" src="https://github.com/user-attachments/assets/96ed68f7-c897-4733-ad3e-fa8957c08a81" />
 
