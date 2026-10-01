@@ -8,9 +8,9 @@ Una extensión de Chrome que permite mostrar chats de VOD de Twitch en YouTube.
 
 ## Funciones
 
-<img width="435" height="632" alt="toolbar ext" src="https://github.com/user-attachments/assets/745625b0-8908-4003-a1e6-56aed5b1591a" />
+<img width="432" height="627" alt="toolbar ext es" src="https://github.com/user-attachments/assets/c5bc8407-b913-481d-a423-43db5a9307aa" />
 
-<img width="471" height="294" alt="overlay" src="https://github.com/user-attachments/assets/6fa941aa-34d3-454c-b891-999cc5f5fe27" />
+<img width="462" height="362" alt="overlay es" src="https://github.com/user-attachments/assets/1657ab55-5767-4962-89a8-9094e7de5be5" />
 
 - Mostrar el chat de Twitch de un VOD junto a vídeos de YouTube
 - Ajustar el desfase del chat para sincronizarlo con el vídeo
