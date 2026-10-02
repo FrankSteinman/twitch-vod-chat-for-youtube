@@ -351,12 +351,14 @@ async function loadSettings() {
 
   const state = await sendToContent({action:'get-state'});
   if (state?.ok) {
-    if (state.hasChat && Number.isFinite(Number(state.offset))) setOffsetUI(Number(state.offset));
-    if (state.twitchMode) {
-      twitchInput.value = state.twitchVodInput || state.twitchVodId || '';
-      if (state.hasChat) setFileState(true, state.chatFileName || '', true);
+    if (Number.isFinite(Number(state.offset))) setOffsetUI(Number(state.offset));
+    twitchInput.value = state.twitchVodInput || state.twitchVodId || '';
+    if (state.twitchMode && state.hasChat) {
+      setFileState(true, state.chatFileName || '', true);
     } else if (state.hasChat) {
       setFileState(true, state.chatFileName || '', false);
+    } else {
+      setFileState(false);
     }
   }
 }
@@ -497,6 +499,9 @@ document.getElementById('hide').addEventListener('click', () => setChatVisibilit
 document.getElementById('load-chat').addEventListener('click', openChat);
 document.getElementById('save-offset').addEventListener('click', saveOffset);
 document.getElementById('load-twitch-vod').addEventListener('click', loadTwitchVodFromPopup);
+document.getElementById('twitch-vod-id').addEventListener('input', (e) => {
+  sendToContent({action:'set-twitch-vod-input', value:String(e.target.value || '').trim()});
+});
 document.getElementById('twitch-vod-id').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadTwitchVodFromPopup(); });
 document.getElementById('offset-apply').addEventListener('click', applyOffset);
 document.getElementById('offset').addEventListener('keydown', (e) => { if (e.key === 'Enter') applyOffset(); });
@@ -612,10 +617,10 @@ chrome.storage.onChanged?.addListener(async (changes, areaName) => {
   if (toolbarLoadInProgress) return;
   const state = await sendToContent({action:'get-state'});
   if (state?.ok) {
-    if (state.hasChat && Number.isFinite(Number(state.offset))) setOffsetUI(Number(state.offset));
-    if (state.twitchMode) {
-      document.getElementById('twitch-vod-id').value = state.twitchVodInput || state.twitchVodId || '';
-      setFileState(state.hasChat, state.chatFileName || '', true);
+    if (Number.isFinite(Number(state.offset))) setOffsetUI(Number(state.offset));
+    document.getElementById('twitch-vod-id').value = state.twitchVodInput || state.twitchVodId || '';
+    if (state.twitchMode && state.hasChat) {
+      setFileState(true, state.chatFileName || '', true);
     } else {
       setFileState(state.hasChat, state.chatFileName || '', false);
     }

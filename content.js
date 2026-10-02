@@ -63,7 +63,10 @@
     twitchLastVideoTime: NaN,
     twitchPendingTarget: NaN,
     twitchSeekSequence: 0,
-    twitchNextOffset: NaN
+    twitchNextOffset: NaN,
+    currentYouTubeVideoId: '',
+    videoSettingsLoadToken: 0,
+    prefsLoaded: false
   };
 
   const $ = (id) => document.getElementById(id);
@@ -97,6 +100,93 @@
     const nums = parts.map(Number);
     if (parts.length === 2) return sign * (nums[0] * 60 + nums[1]);
     return sign * (nums[0] * 3600 + nums[1] * 60 + nums[2]);
+  }
+
+  function getYouTubeVideoId() {
+    try {
+      const u = new URL(location.href);
+      if (u.hostname === 'youtu.be') {
+        const id = u.pathname.split('/').filter(Boolean)[0] || '';
+        return /^[A-Za-z0-9_-]{11}$/.test(id) ? id : '';
+      }
+      const v = u.searchParams.get('v');
+      if (v && /^[A-Za-z0-9_-]{11}$/.test(v)) return v;
+      const parts = u.pathname.split('/').filter(Boolean);
+      for (const marker of ['shorts', 'embed', 'live']) {
+        const i = parts.indexOf(marker);
+        if (i >= 0 && /^[A-Za-z0-9_-]{11}$/.test(parts[i + 1] || '')) return parts[i + 1];
+      }
+    } catch {}
+    return '';
+  }
+
+  function videoSettingsKey(videoId) {
+    return 'tcsVideoSettings_' + videoId;
+  }
+
+  async function saveVideoSettings() {
+    const videoId = STATE.currentYouTubeVideoId || getYouTubeVideoId();
+    if (!videoId) return;
+    try {
+      await chrome.storage.local.set({
+        [videoSettingsKey(videoId)]: {
+          version: 1,
+          offset: Number.isFinite(Number(STATE.offset)) ? Number(STATE.offset) : 0,
+          twitchVodInput: safeText(STATE.twitchVodInput).trim()
+        }
+      });
+    } catch {}
+  }
+
+  async function restoreVideoSettingsForCurrentVideo(initial = false) {
+    if (!STATE.prefsLoaded) return;
+    const videoId = getYouTubeVideoId();
+    if (!videoId) return;
+    if (STATE.currentYouTubeVideoId === videoId && STATE.videoSettingsLoadToken > 0) return;
+
+    const token = ++STATE.videoSettingsLoadToken;
+    const previousVideoId = STATE.currentYouTubeVideoId;
+    STATE.currentYouTubeVideoId = videoId;
+
+    if (previousVideoId && previousVideoId !== videoId) {
+      // A YouTube SPA navigation changed to a different video. Do not carry the
+      // previous video's chat buffer, Twitch VOD, or offset into the new video.
+      resetChatStateForLoad('');
+    }
+
+    let saved = null;
+    try {
+      const result = await chrome.storage.local.get(videoSettingsKey(videoId));
+      saved = result?.[videoSettingsKey(videoId)] || null;
+    } catch {}
+
+    if (token !== STATE.videoSettingsLoadToken || getYouTubeVideoId() !== videoId) return;
+
+    if (saved && typeof saved === 'object') {
+      const savedOffset = Number(saved.offset);
+      STATE.offset = Number.isFinite(savedOffset) ? savedOffset : 0;
+      STATE.twitchVodInput = safeText(saved.twitchVodInput).trim();
+    } else if (!initial) {
+      STATE.offset = 0;
+      STATE.twitchVodInput = '';
+    }
+
+    if ($('tcs-offset')) $('tcs-offset').value = formatOffset(STATE.offset);
+    if ($('tcs-twitch-vod-id')) $('tcs-twitch-vod-id').value = STATE.twitchVodInput;
+    if (previousVideoId && previousVideoId !== videoId) {
+      if ($('tcs-file-name')) $('tcs-file-name').textContent = tr('noChatFile');
+      if ($('tcs-save-json')) $('tcs-save-json').disabled = true;
+      if ($('tcs-status')) $('tcs-status').textContent = '';
+      if ($('tcs-chat')) $('tcs-chat').innerHTML = `<div class=\"tcs-system\">${tr('chooseChat')}</div>`;
+    }
+
+    chrome.storage.local.set({offset: STATE.offset}).catch(() => {});
+    savePrefs();
+    render(true);
+
+    // Seed the current video with the legacy/global offset on first load so an
+    // existing user's current video keeps its previous synchronization.
+    if (!saved && initial) saveVideoSettings();
   }
 
   const I18N = globalThis.TCS_I18N;
@@ -332,6 +422,7 @@
     const syncTwitchVodInput = () => {
       const value = safeText(twitchVodInput?.value).trim();
       STATE.twitchVodInput = value;
+      saveVideoSettings();
     };
     $('tcs-load-twitch').addEventListener('click', () => {
       syncTwitchVodInput();
@@ -447,6 +538,8 @@
       if (saved.height != null) $('tcs-overlay').style.height = saved.height + 'px';
       applyOpacity();
       applyDisplayPrefs();
+      STATE.prefsLoaded = true;
+      restoreVideoSettingsForCurrentVideo(true);
     } catch {}
   }
 
@@ -617,6 +710,7 @@
     setStatus('offsetApplied', {offset: formatOffset(parsed)});
     savePrefs();
     chrome.storage.local.set({offset: STATE.offset}).catch(() => {});
+    saveVideoSettings();
     maybeFetchTwitchForOffsetChange();
   }
 
@@ -628,6 +722,7 @@
     setStatus('offsetCurrent', {offset: formatOffset(STATE.offset)});
     savePrefs();
     chrome.storage.local.set({offset: STATE.offset}).catch(() => {});
+    saveVideoSettings();
     maybeFetchTwitchForOffsetChange();
   }
 
@@ -1144,6 +1239,7 @@ function getSavedOffsetFromText(text) {
     STATE.twitchVodId = id;
     STATE.twitchVodInput = inputValue;
     if ($('tcs-twitch-vod-id')) $('tcs-twitch-vod-id').value = inputValue;
+    saveVideoSettings();
     STATE.twitchFetchToken++;
     STATE.chatFileHandle = null;
     STATE.chatFileName = `Twitch VOD ${id}`;
@@ -1227,6 +1323,7 @@ function getSavedOffsetFromText(text) {
     if (STATE.streamParser.savedOffset !== null) {
       STATE.offset = STATE.streamParser.savedOffset;
       chrome.storage.local.set({offset: STATE.offset}).catch(() => {});
+      saveVideoSettings();
     }
     if ($('tcs-offset')) $('tcs-offset').value = formatOffset(STATE.offset);
     if ($('tcs-file-name')) $('tcs-file-name').textContent = fileName || tr('noChatFile');
@@ -1953,6 +2050,7 @@ function getSavedOffsetFromText(text) {
     STATE.offset = chatTime - video.currentTime;
     $('tcs-offset').value = formatOffset(STATE.offset);
     chrome.storage.local.set({offset: STATE.offset}).catch(() => {});
+    saveVideoSettings();
     savePrefs();
     setStatus('synced', {chatTime: formatTime(chatTime, true), videoTime: formatTime(video.currentTime, true), offset: formatOffset(STATE.offset)});
     savePrefs();
@@ -2031,8 +2129,14 @@ function getSavedOffsetFromText(text) {
     applyChatVisibility();
 
     window.addEventListener('yt-navigate-start', applyChatVisibility);
-    window.addEventListener('yt-navigate-finish', applyChatVisibility);
-    window.addEventListener('popstate', applyChatVisibility);
+    window.addEventListener('yt-navigate-finish', () => {
+      applyChatVisibility();
+      restoreVideoSettingsForCurrentVideo(false);
+    });
+    window.addEventListener('popstate', () => {
+      applyChatVisibility();
+      restoreVideoSettingsForCurrentVideo(false);
+    });
 
     if (!STATE.videoObserverInterval) {
       // YouTube can replace its <video> element during navigation/quality changes.
@@ -2041,6 +2145,7 @@ function getSavedOffsetFromText(text) {
           ensureUI();
           findVideo();
           applyChatVisibility();
+          restoreVideoSettingsForCurrentVideo(false);
         } catch (err) { console.debug('Twitch VOD Chat for YouTube video observer error:', err); }
       }, 2000);
     }
@@ -2231,6 +2336,7 @@ function getSavedOffsetFromText(text) {
       STATE.twitchVodInput = value;
       const input = $('tcs-twitch-vod-id');
       if (input) input.value = value;
+      saveVideoSettings();
       sendResponse?.({ ok: true, twitchVodInput: value });
       return true;
     }
@@ -2256,6 +2362,7 @@ function getSavedOffsetFromText(text) {
       if ($('tcs-offset')) $('tcs-offset').value = formatOffset(n);
       savePrefs();
       chrome.storage.local.set({offset: STATE.offset}).catch(() => {});
+      saveVideoSettings();
       maybeFetchTwitchForOffsetChange();
       sendResponse?.({ ok: true, offset: STATE.offset });
       return true;

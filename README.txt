@@ -1,4 +1,4 @@
-Twitch VOD Chat for YouTube 1.11
+Twitch VOD Chat for YouTube 1.12
 ====================================
 
 Display a local TwitchDownloader VOD chat JSON over a YouTube video and synchronize the two timelines with a fixed offset. The extension processes the chat locally in the browser.
@@ -21,6 +21,10 @@ The loader reads large files incrementally instead of creating a single giant JS
 Offset persistence
 ------------------
 "Save offset to JSON" updates the original JSON file using the File System Access API. The extension stores a small `_tcs_sync` object containing the saved offset. It does not create a second chat copy or reserialize the entire file.
+
+Per-video memory
+----------------
+The extension remembers the Twitch VOD ID/URL and chat offset separately for each YouTube video. Returning to a previously used YouTube video restores those values.
 
 Third-party emotes
 ------------------
