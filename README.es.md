@@ -27,7 +27,7 @@ Una extensión de Chrome que permite mostrar chats de VOD de Twitch en YouTube.
 - Cambiar el tamaño del chat arrastrando los laterales
 - Ocultar la barra de desplazamiento sin perder la posibilidad de desplazarse por el chat
 - Los ajustes están disponibles tanto desde el icono de la extensión como desde el propio chat
-- Inglés, español, francés, japonés, coreano, portugués, alemán e italiano
+- Soporta: inglés, español, francés, japonés, coreano, portugués, alemán e italiano.
 
 ## Instalación
 
