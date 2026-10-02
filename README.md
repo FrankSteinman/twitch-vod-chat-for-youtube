@@ -13,9 +13,8 @@ A Chrome extension that allows you to display Twitch VOD chats on YouTube.
 <img width="415" height="410" alt="overlay 1 10" src="https://github.com/user-attachments/assets/bc8a637c-a711-4ec6-aabf-5012a1069f9c" />
 
 - Display Twitch VOD chat alongside YouTube videos
-- Load Twitch VOD URLs to load chats
+- Load Twitch VOD URLs or JSON files to load chats
 - Adjust the chat offset to sync it with the video
-- Load JSON chat files
 - Save the offset back to the original chat JSON
 - Search the chat for messages and sync points
 - Twitch, BTTV, FFZ, and 7TV emote support
