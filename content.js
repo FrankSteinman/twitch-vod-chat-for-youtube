@@ -332,7 +332,6 @@
     const syncTwitchVodInput = () => {
       const value = safeText(twitchVodInput?.value).trim();
       STATE.twitchVodInput = value;
-      chrome.storage.local.set({twitchVodInput: value}).catch(() => {});
     };
     $('tcs-load-twitch').addEventListener('click', () => {
       syncTwitchVodInput();
@@ -580,6 +579,33 @@
     } catch {}
   }
 
+  function maybeFetchTwitchForOffsetChange() {
+    if (!STATE.twitchMode || !STATE.twitchVodId) {
+      render(true);
+      return;
+    }
+
+    const video = STATE.currentVideo || findVideo();
+    if (!video) {
+      render(true);
+      return;
+    }
+
+    const target = Math.max(0, video.currentTime + STATE.offset);
+    const buffered = STATE.comments.length > 0
+      && Number.isFinite(STATE.twitchMinTime)
+      && Number.isFinite(STATE.twitchMaxTime)
+      && target >= STATE.twitchMinTime
+      && target <= STATE.twitchMaxTime;
+
+    render(true);
+
+    // Changing the offset effectively moves the Twitch chat position. If the
+    // new target lies outside the currently buffered Twitch range, re-anchor
+    // the progressive fetch around the new target so the chat can load there.
+    if (!buffered) maybeFetchTwitchForSeek();
+  }
+
   function applyOffset() {
     const parsed = parseOffset($('tcs-offset').value);
     if (!Number.isFinite(parsed)) {
@@ -591,7 +617,7 @@
     setStatus('offsetApplied', {offset: formatOffset(parsed)});
     savePrefs();
     chrome.storage.local.set({offset: STATE.offset}).catch(() => {});
-    render(true);
+    maybeFetchTwitchForOffsetChange();
   }
 
   function nudgeOffset(deltaSeconds) {
@@ -602,7 +628,7 @@
     setStatus('offsetCurrent', {offset: formatOffset(STATE.offset)});
     savePrefs();
     chrome.storage.local.set({offset: STATE.offset}).catch(() => {});
-    render(true);
+    maybeFetchTwitchForOffsetChange();
   }
 
   async function getUtf8SafeTail(file, desiredSize = 128 * 1024 + 4) {
@@ -1104,12 +1130,6 @@ function getSavedOffsetFromText(text) {
   async function loadTwitchVod(vodValue = null) {
     let inputValue = safeText(vodValue ?? $('tcs-twitch-vod-id')?.value).trim();
     if (!inputValue) inputValue = safeText(STATE.twitchVodInput).trim();
-    if (!inputValue) {
-      try {
-        const stored = await chrome.storage.local.get({twitchVodInput: ''});
-        inputValue = safeText(stored.twitchVodInput).trim();
-      } catch {}
-    }
     const id = normalizeTwitchVodId(inputValue);
     if (!id) {
       if ($('tcs-status')) $('tcs-status').textContent = twitchTr('enter');
@@ -1124,7 +1144,6 @@ function getSavedOffsetFromText(text) {
     STATE.twitchVodId = id;
     STATE.twitchVodInput = inputValue;
     if ($('tcs-twitch-vod-id')) $('tcs-twitch-vod-id').value = inputValue;
-    chrome.storage.local.set({twitchVodInput: inputValue}).catch(() => {});
     STATE.twitchFetchToken++;
     STATE.chatFileHandle = null;
     STATE.chatFileName = `Twitch VOD ${id}`;
@@ -2158,12 +2177,6 @@ function getSavedOffsetFromText(text) {
       STATE.language = I18N?.languages?.[changes.language.newValue] ? changes.language.newValue : 'en';
       applyLanguage();
     }
-    if (changes.twitchVodInput) {
-      const value = safeText(changes.twitchVodInput.newValue).trim();
-      STATE.twitchVodInput = value;
-      const input = $('tcs-twitch-vod-id');
-      if (input && document.activeElement !== input) input.value = value;
-    }
   });
 
   chrome.runtime.onMessage?.addListener((msg, _sender, sendResponse) => {
@@ -2218,7 +2231,6 @@ function getSavedOffsetFromText(text) {
       STATE.twitchVodInput = value;
       const input = $('tcs-twitch-vod-id');
       if (input) input.value = value;
-      chrome.storage.local.set({twitchVodInput: value}).catch(() => {});
       sendResponse?.({ ok: true, twitchVodInput: value });
       return true;
     }
@@ -2244,7 +2256,7 @@ function getSavedOffsetFromText(text) {
       if ($('tcs-offset')) $('tcs-offset').value = formatOffset(n);
       savePrefs();
       chrome.storage.local.set({offset: STATE.offset}).catch(() => {});
-      render(true);
+      maybeFetchTwitchForOffsetChange();
       sendResponse?.({ ok: true, offset: STATE.offset });
       return true;
     }

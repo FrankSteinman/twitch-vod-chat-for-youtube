@@ -1,4 +1,4 @@
-Twitch VOD Chat for YouTube 1.10
+Twitch VOD Chat for YouTube 1.11
 ====================================
 
 Display a local TwitchDownloader VOD chat JSON over a YouTube video and synchronize the two timelines with a fixed offset. The extension processes the chat locally in the browser.

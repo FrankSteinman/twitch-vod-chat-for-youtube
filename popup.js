@@ -410,7 +410,6 @@ async function setSplitColor(value) {
 async function loadTwitchVodFromPopup() {
   const input = document.getElementById('twitch-vod-id');
   const value = String(input.value || '').trim();
-  await chrome.storage.local.set({twitchVodInput: value});
   if (!value) {
     document.getElementById('file-status').textContent = popupTr('twitchEnter');
     return;
@@ -498,7 +497,6 @@ document.getElementById('hide').addEventListener('click', () => setChatVisibilit
 document.getElementById('load-chat').addEventListener('click', openChat);
 document.getElementById('save-offset').addEventListener('click', saveOffset);
 document.getElementById('load-twitch-vod').addEventListener('click', loadTwitchVodFromPopup);
-document.getElementById('twitch-vod-id').addEventListener('input', (e) => { chrome.storage.local.set({twitchVodInput: String(e.target.value || '')}).catch(() => {}); });
 document.getElementById('twitch-vod-id').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadTwitchVodFromPopup(); });
 document.getElementById('offset-apply').addEventListener('click', applyOffset);
 document.getElementById('offset').addEventListener('keydown', (e) => { if (e.key === 'Enter') applyOffset(); });
