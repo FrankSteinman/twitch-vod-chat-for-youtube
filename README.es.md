@@ -49,7 +49,7 @@ Usa los controles de **Desfase** para ajustar la sincronización. Un desfase pos
 
 Puedes guardar el desfase en el archivo JSON original después de cargar el chat.
 
-Para acceder a los ajustes del chat, pasa el ratón por la parte superior derecha del chat y aparecerá un icono de +. Haz clic en el icono + para acceder a los ajustes del chat.
+Para acceder a los ajustes desde el chat, pasa el ratón por la parte superior derecha del chat y aparecerá un icono de +. Haz clic en el icono + para abrir los ajustes.
 
 ## Cómo conseguir los archivos del chat
 
