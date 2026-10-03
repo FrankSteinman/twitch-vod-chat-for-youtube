@@ -51,6 +51,8 @@ Puedes guardar el desfase en el archivo JSON original después de cargar el chat
 
 Para acceder a los ajustes desde el chat, pasa el ratón por la parte superior derecha del chat y aparecerá un icono de +. Haz clic en el icono + para abrir los ajustes.
 
+Para mover el chat, pasa el ratón por la parte superior del chat. Aparecerá un icono y el cursor cambiará, lo que te permitirá mover el chat.
+
 ## Cómo conseguir los archivos del chat
 
 Recomiendo usar [TwitchDownloader](https://github.com/lay295/TwitchDownloader) para descargar el chat del VOD como un archivo **JSON**. Yo activé **3rd Party Emotes** al descargar el chat y me funcionó bien.
