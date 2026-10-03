@@ -63,6 +63,6 @@ Consulta `PRIVACY.md` para obtener más información.
 
 ## Versión actual
 
-**1.12**
+**1.13**
 
 Este es un proyecto casual. Es posible que haga actualizaciones de vez en cuando cuando haya algo que arreglar o deje de funcionar. Todo esto se ha hecho con la ayuda de ChatGPT.
