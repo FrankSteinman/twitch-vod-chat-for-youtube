@@ -50,6 +50,8 @@ Use the **Offset** controls to adjust the timing. A positive offset moves the di
 
 The offset can be saved back to the original JSON file after the chat has been loaded.
 
+To access the settings in the chat overlay, hover your mouse over the top right section of the chat overlay and a plus icon will appear. Click on that plus icon to access the settings within the chat overlay.
+
 ## Getting chat files
 
 I recommend using [TwitchDownloader](https://github.com/lay295/TwitchDownloader) to download the VOD chat as a **JSON** file. I enabled 3rd Party Emotes when downloading the chat and that worked for me. 
