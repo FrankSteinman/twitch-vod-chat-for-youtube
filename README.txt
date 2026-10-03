@@ -1,4 +1,4 @@
-Twitch VOD Chat for YouTube 1.12
+Twitch VOD Chat for YouTube 1.13
 ====================================
 
 Display a local TwitchDownloader VOD chat JSON over a YouTube video and synchronize the two timelines with a fixed offset. The extension processes the chat locally in the browser.
@@ -10,7 +10,7 @@ Features
 - Search chat to find synchronization points.
 - Load Twitch VOD chat directly by Twitch VOD ID or URL and fetch it progressively as the video plays.
 - First-party Twitch emotes plus BTTV, FFZ, and 7TV emotes when available.
-- Clean chat, timestamps, split-message backgrounds, opacity, and scrollbar controls.
+- Settings start collapsed so the chat is shown without a title bar; click the + at the top right to open settings, and the − button to collapse them again. Other controls include timestamps, split-message backgrounds, opacity, scrollbar, and chat-frame visibility.
 - English, Spanish, French, Japanese, Korean, Portuguese, German, and Italian UI.
 - No analytics, ads, accounts, or remote JavaScript.
 

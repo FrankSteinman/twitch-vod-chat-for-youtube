@@ -7,7 +7,7 @@ Display and synchronize a Twitch VOD chat replay with a YouTube video.
 
 Permissions
 -----------
-`storage`: stores the user's language, appearance preferences, chat visibility preference, and synchronization offset.
+`storage`: stores the user's language, appearance preferences, chat visibility preference, synchronization offset, and the small per-YouTube-video Twitch VOD/offset associations.
 
 Host permissions
 -----------------

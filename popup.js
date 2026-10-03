@@ -52,8 +52,6 @@ function applyLanguage(lang) {
   document.getElementById('hide').textContent = L.popup.hideChat;
   document.getElementById('open').textContent = L.popup.showChat;
   document.getElementById('language').setAttribute('aria-label', L.popup.language);
-  document.getElementById('clean-chat-label').textContent = L.popup.cleanChat;
-  document.getElementById('clean-chat').setAttribute('aria-label', L.popup.cleanChat);
   const EN = I18N.get('en');
   const showTimestampsLabel = L.popup.showTimestamps || EN.popup.showTimestamps;
   const splitMessagesLabel = L.popup.splitMessages || EN.popup.splitMessages;
@@ -322,10 +320,9 @@ async function loadChatFromPopup() {
 
 async function loadSettings() {
   const saved = await chrome.storage.local.get({
-    language:'en', cleanChat:false, showTimestamps:true, purpleMessages:true, hideScrollbar:false, hideChatFrame:false, opacity:94, splitColor:'#563e76', offset:0
+    language:'en', showTimestamps:true, purpleMessages:true, hideScrollbar:false, hideChatFrame:false, opacity:94, splitColor:'#563e76', offset:0
   });
   buildLanguageOptions(saved.language);
-  document.getElementById('clean-chat').checked = saved.cleanChat === true;
   document.getElementById('show-timestamps').checked = saved.showTimestamps !== false;
   document.getElementById('split-messages').checked = saved.purpleMessages !== false;
   document.getElementById('hide-scrollbar').checked = saved.hideScrollbar === true;
@@ -363,11 +360,6 @@ async function loadSettings() {
   }
 }
 
-async function setCleanChat(enabled) {
-  const value = enabled === true;
-  await chrome.storage.local.set({cleanChat: value});
-  await sendToContent({action:'set-clean-chat', enabled:value});
-}
 
 async function setShowTimestamps(enabled) {
   const value = enabled === true;
@@ -437,8 +429,9 @@ async function applyOffset() {
   const parsed = parseOffset(document.getElementById('offset').value);
   if (!Number.isFinite(parsed)) return;
   await chrome.storage.local.set({offset:parsed});
-  const result = await sendToContent({action:'set-offset', offset:parsed});
+  const result = await sendToContent({action:'set-offset', offset:parsed, showStatus:true});
   setOffsetUI(result?.ok ? result.offset : parsed);
+  document.getElementById('file-status').textContent = popupTr('offsetApplied');
 }
 
 async function nudgeOffset(delta) {
@@ -574,7 +567,6 @@ function bindAcceleratingNudge(button, direction) {
 
 bindAcceleratingNudge(document.getElementById('offset-up'), 1);
 bindAcceleratingNudge(document.getElementById('offset-down'), -1);
-document.getElementById('clean-chat').addEventListener('change', (e) => setCleanChat(e.target.checked));
 document.getElementById('show-timestamps').addEventListener('change', (e) => setShowTimestamps(e.target.checked));
 document.getElementById('split-messages').addEventListener('change', (e) => setSplitMessages(e.target.checked));
 document.getElementById('hide-scrollbar').addEventListener('change', (e) => setHideScrollbar(e.target.checked));
@@ -591,7 +583,6 @@ document.getElementById('language').addEventListener('change', async (e) => {
 
 chrome.storage.onChanged?.addListener(async (changes, areaName) => {
   if (areaName !== 'local') return;
-  if (changes.cleanChat) document.getElementById('clean-chat').checked = changes.cleanChat.newValue === true;
   if (changes.showTimestamps) document.getElementById('show-timestamps').checked = changes.showTimestamps.newValue !== false;
   if (changes.purpleMessages) document.getElementById('split-messages').checked = changes.purpleMessages.newValue !== false;
   if (changes.hideScrollbar) document.getElementById('hide-scrollbar').checked = changes.hideScrollbar.newValue === true;

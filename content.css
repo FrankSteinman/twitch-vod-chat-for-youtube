@@ -8,12 +8,15 @@
 #tcs-overlay.tcs-hidden{display:none}
 #tcs-overlay.tcs-no-box{box-shadow:none!important}
 #tcs-overlay.tcs-settings-collapsed #tcs-head{border-bottom:0}
-#tcs-overlay.tcs-clean #tcs-head,#tcs-overlay.tcs-clean #tcs-controls,#tcs-overlay.tcs-clean #tcs-search-results{display:none}
+#tcs-overlay.tcs-settings-collapsed #tcs-head,#tcs-overlay.tcs-settings-collapsed #tcs-controls,#tcs-overlay.tcs-settings-collapsed #tcs-search-results{display:none}
 #tcs-overlay.tcs-settings-collapsed #tcs-chat{padding-top:10px}
-#tcs-clean-drag-handle{display:none;position:absolute;top:2px;left:10px;right:10px;height:18px;margin:0;background:transparent;color:transparent;border-radius:4px;cursor:move;user-select:none;z-index:20;pointer-events:auto;}
-#tcs-clean-drag-handle::after{content:"⋮⋮";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) translateY(-1px);font-size:15px;letter-spacing:1px;line-height:1;color:#b9b9c1;background:rgba(55,55,61,.82);border-radius:4px;padding:1px 8px;opacity:0;transition:opacity .12s ease;}
-#tcs-clean-drag-handle:hover::after{opacity:1;}
-#tcs-overlay.tcs-clean #tcs-clean-drag-handle{display:block;}
+#tcs-settings-drag-handle{display:none;position:absolute;top:2px;left:10px;right:52px;height:18px;margin:0;background:transparent;color:transparent;border-radius:4px;cursor:move;user-select:none;z-index:20;pointer-events:auto;}
+#tcs-settings-drag-handle::after{content:"⋮⋮";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) translateY(-1px);font-size:15px;letter-spacing:1px;line-height:1;color:#b9b9c1;background:rgba(55,55,61,.82);border-radius:4px;padding:1px 8px;opacity:0;transition:opacity .12s ease;}
+#tcs-settings-drag-handle:hover::after,#tcs-settings-drag-handle:focus-visible::after{opacity:1;}
+#tcs-overlay.tcs-settings-collapsed #tcs-settings-drag-handle{display:block;}
+.tcs-settings-btn{display:none;position:absolute;top:1px;right:9px;width:34px;height:20px;padding:0;border:0!important;border-radius:4px;background:rgba(55,55,61,.82)!important;color:#b9b9c1!important;font-size:18px!important;line-height:19px!important;cursor:pointer;opacity:0;transition:opacity .12s ease;z-index:21;}
+#tcs-overlay.tcs-settings-collapsed .tcs-settings-btn{display:block;}
+#tcs-overlay.tcs-settings-collapsed .tcs-settings-btn:hover,#tcs-overlay.tcs-settings-collapsed .tcs-settings-btn:focus-visible{opacity:1;}
 #tcs-head{display:flex;align-items:center;gap:8px;padding:9px 10px;background:rgba(31,31,35,var(--tcs-opacity));border-bottom:1px solid rgba(255,255,255,.08);cursor:move;user-select:none;flex:0 0 auto}
 #tcs-title{font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tcs-head-btn{background:transparent!important;border:0!important;color:#c8c8d0!important;font-size:19px!important;line-height:1!important;padding:2px 6px!important;cursor:pointer}
@@ -22,7 +25,6 @@
 .tcs-control-row:first-child{margin-top:0}
 .tcs-file-name{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#adadb8;font-size:12px}
 .tcs-twitch-row{padding-top:1px}
-.tcs-twitch-label{color:#adadb8;font-size:12px;white-space:nowrap}
 #tcs-twitch-vod-id{flex:1;min-width:120px}
 .tcs-input{box-sizing:border-box;background:#0e0e10;color:#efeff1;border:1px solid #46464f;border-radius:4px;padding:5px 7px}
 #tcs-offset{width:112px}

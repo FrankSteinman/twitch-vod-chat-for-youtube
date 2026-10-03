@@ -39,7 +39,6 @@
     purpleMessages: true,
     hideScrollbar: false,
     hideChatFrame: false,
-    cleanChat: false,
     language: 'en',
     popupLoadFileName: '',
     videoObserverInterval: 0,
@@ -191,14 +190,14 @@
 
   const I18N = globalThis.TCS_I18N;
   const TWITCH_UI = {
-    en: { label: 'Twitch VOD ID', load: 'Load Twitch VOD', placeholder: 'Enter Twitch VOD ID or URL', enter: 'Enter a Twitch VOD ID first.', loading: 'Loading Twitch VOD chat…', fetching: 'Fetching Twitch chat…', noChat: 'No Twitch chat was found for this VOD.', loaded: '{count} messages fetched • {length} chat available', error: 'Twitch chat error: {error}' },
-    es: { label: 'ID del VOD de Twitch', load: 'Cargar VOD de Twitch', placeholder: 'Introduce el ID o la URL del VOD de Twitch', enter: 'Introduce primero un ID de VOD de Twitch.', loading: 'Cargando el chat del VOD de Twitch…', fetching: 'Cargando chat de Twitch…', noChat: 'No se encontró chat de Twitch para este VOD.', loaded: '{count} mensajes cargados • chat disponible hasta {length}', error: 'Error del chat de Twitch: {error}' },
-    fr: { label: 'ID du VOD Twitch', load: 'Charger le VOD Twitch', placeholder: 'Saisissez l’ID ou l’URL du VOD Twitch', enter: 'Saisissez d’abord un ID de VOD Twitch.', loading: 'Chargement du chat du VOD Twitch…', fetching: 'Chargement du chat Twitch…', noChat: 'Aucun chat Twitch trouvé pour ce VOD.', loaded: '{count} messages récupérés • chat disponible jusqu’à {length}', error: 'Erreur du chat Twitch : {error}' },
-    ja: { label: 'Twitch VOD ID', load: 'Twitch VOD を読み込む', placeholder: 'Twitch VOD ID または URL を入力', enter: 'まず Twitch VOD ID を入力してください。', loading: 'Twitch VOD チャットを読み込み中…', fetching: 'Twitch チャットを取得中…', noChat: 'この VOD の Twitch チャットが見つかりませんでした。', loaded: '{count} 件取得 • {length} までのチャットを利用可能', error: 'Twitch チャットエラー: {error}' },
-    ko: { label: 'Twitch VOD ID', load: 'Twitch VOD 불러오기', placeholder: 'Twitch VOD ID 또는 URL 입력', enter: '먼저 Twitch VOD ID를 입력하세요.', loading: 'Twitch VOD 채팅을 불러오는 중…', fetching: 'Twitch 채팅을 가져오는 중…', noChat: '이 VOD에서 Twitch 채팅을 찾을 수 없습니다.', loaded: '{count}개 메시지 가져옴 • {length}까지 채팅 사용 가능', error: 'Twitch 채팅 오류: {error}' },
-    pt: { label: 'ID do VOD da Twitch', load: 'Carregar VOD da Twitch', placeholder: 'Digite o ID ou a URL do VOD da Twitch', enter: 'Digite primeiro um ID de VOD da Twitch.', loading: 'Carregando o chat do VOD da Twitch…', fetching: 'Carregando o chat da Twitch…', noChat: 'Nenhum chat da Twitch foi encontrado para este VOD.', loaded: '{count} mensagens obtidas • chat disponível até {length}', error: 'Erro no chat da Twitch: {error}' },
-    de: { label: 'Twitch-VOD-ID', load: 'Twitch-VOD laden', placeholder: 'Twitch-VOD-ID oder URL eingeben', enter: 'Gib zuerst eine Twitch-VOD-ID ein.', loading: 'Twitch-VOD-Chat wird geladen…', fetching: 'Twitch-Chat wird geladen…', noChat: 'Für dieses VOD wurde kein Twitch-Chat gefunden.', loaded: '{count} Nachrichten geladen • Chat bis {length} verfügbar', error: 'Twitch-Chat-Fehler: {error}' },
-    it: { label: 'ID VOD Twitch', load: 'Carica VOD Twitch', placeholder: 'Inserisci l’ID o l’URL del VOD Twitch', enter: 'Inserisci prima un ID VOD Twitch.', loading: 'Caricamento della chat del VOD Twitch…', fetching: 'Caricamento della chat Twitch…', noChat: 'Non è stata trovata alcuna chat Twitch per questo VOD.', loaded: '{count} messaggi recuperati • chat disponibile fino a {length}', error: 'Errore della chat Twitch: {error}' }
+    en: { label: 'Twitch VOD URL or ID', load: 'Load Twitch VOD', placeholder: 'Enter Twitch VOD URL or ID', enter: 'Enter a Twitch VOD URL or ID first.', loading: 'Loading Twitch VOD chat…', fetching: 'Fetching Twitch chat…', noChat: 'No Twitch chat was found for this VOD.', loaded: '{count} messages fetched • {length} chat available', error: 'Twitch chat error: {error}' },
+    es: { label: 'URL o ID del VOD de Twitch', load: 'Cargar VOD de Twitch', placeholder: 'Introduce la URL o el ID del VOD de Twitch', enter: 'Introduce primero la URL o el ID de un VOD de Twitch.', loading: 'Cargando el chat del VOD de Twitch…', fetching: 'Cargando chat de Twitch…', noChat: 'No se encontró chat de Twitch para este VOD.', loaded: '{count} mensajes cargados • chat disponible hasta {length}', error: 'Error del chat de Twitch: {error}' },
+    fr: { label: 'URL ou ID du VOD Twitch', load: 'Charger le VOD Twitch', placeholder: 'Saisissez l’URL ou l’ID du VOD Twitch', enter: 'Saisissez d’abord l’URL ou l’ID d’un VOD Twitch.', loading: 'Chargement du chat du VOD Twitch…', fetching: 'Chargement du chat Twitch…', noChat: 'Aucun chat Twitch trouvé pour ce VOD.', loaded: '{count} messages récupérés • chat disponible jusqu’à {length}', error: 'Erreur du chat Twitch : {error}' },
+    ja: { label: 'Twitch VOD の URL または ID', load: 'Twitch VOD を読み込む', placeholder: 'Twitch VOD の URL または ID を入力', enter: 'まず Twitch VOD の URL または ID を入力してください。', loading: 'Twitch VOD チャットを読み込み中…', fetching: 'Twitch チャットを取得中…', noChat: 'この VOD の Twitch チャットが見つかりませんでした。', loaded: '{count} 件取得 • {length} までのチャットを利用可能', error: 'Twitch チャットエラー: {error}' },
+    ko: { label: 'Twitch VOD URL 또는 ID', load: 'Twitch VOD 불러오기', placeholder: 'Twitch VOD URL 또는 ID 입력', enter: '먼저 Twitch VOD URL 또는 ID를 입력하세요.', loading: 'Twitch VOD 채팅을 불러오는 중…', fetching: 'Twitch 채팅을 가져오는 중…', noChat: '이 VOD에서 Twitch 채팅을 찾을 수 없습니다.', loaded: '{count}개 메시지 가져옴 • {length}까지 채팅 사용 가능', error: 'Twitch 채팅 오류: {error}' },
+    pt: { label: 'URL ou ID do VOD da Twitch', load: 'Carregar VOD da Twitch', placeholder: 'Digite a URL ou o ID do VOD da Twitch', enter: 'Digite primeiro a URL ou o ID de um VOD da Twitch.', loading: 'Carregando o chat do VOD da Twitch…', fetching: 'Carregando o chat da Twitch…', noChat: 'Nenhum chat da Twitch foi encontrado para este VOD.', loaded: '{count} mensagens obtidas • chat disponível até {length}', error: 'Erro no chat da Twitch: {error}' },
+    de: { label: 'Twitch-VOD-URL oder ID', load: 'Twitch-VOD laden', placeholder: 'Twitch-VOD-URL oder ID eingeben', enter: 'Gib zuerst eine Twitch-VOD-URL oder ID ein.', loading: 'Twitch-VOD-Chat wird geladen…', fetching: 'Twitch-Chat wird geladen…', noChat: 'Für dieses VOD wurde kein Twitch-Chat gefunden.', loaded: '{count} Nachrichten geladen • Chat bis {length} verfügbar', error: 'Twitch-Chat-Fehler: {error}' },
+    it: { label: 'URL o ID del VOD Twitch', load: 'Carica VOD Twitch', placeholder: 'Inserisci l’URL o l’ID del VOD Twitch', enter: 'Inserisci prima l’URL o l’ID di un VOD Twitch.', loading: 'Caricamento della chat del VOD Twitch…', fetching: 'Caricamento della chat Twitch…', noChat: 'Non è stata trovata alcuna chat Twitch per questo VOD.', loaded: '{count} messaggi recuperati • chat disponibile fino a {length}', error: 'Errore della chat Twitch: {error}' }
   };
   function twitchTr(key, vars = {}) {
     const text = TWITCH_UI[STATE.language]?.[key] || TWITCH_UI.en[key] || key;
@@ -233,14 +232,19 @@
     $('tcs-offset-apply').textContent = tr('apply');
     $('tcs-opacity-label').textContent = tr('opacity');
     $('tcs-show-timestamps-label').textContent = tr('showTimestamps');
-    $('tcs-clean-drag-handle').title = tr('moveChat');
-    $('tcs-clean-drag-handle').setAttribute('aria-label', tr('moveChat'));
+    $('tcs-settings-drag-handle').title = tr('moveChat');
+    $('tcs-settings-drag-handle').setAttribute('aria-label', tr('moveChat'));
+    if ($('tcs-settings-toggle')) {
+      $('tcs-settings-toggle').title = tr('expandSettings');
+      $('tcs-settings-toggle').setAttribute('aria-label', tr('expandSettings'));
+    }
+    $('tcs-hide-chat-frame').setAttribute('aria-label', tr('hideChatFrame'));
     $('tcs-purple-messages-label').textContent = tr('purpleMessages');
     $('tcs-hide-scrollbar-label').textContent = tr('hideScrollbar');
+    $('tcs-hide-chat-frame-label').textContent = tr('hideChatFrame');
     $('tcs-opacity-value').textContent = tr('opacityValue', {n: STATE.opacity});
     $('tcs-search').placeholder = tr('searchPlaceholder');
     $('tcs-search-btn').textContent = tr('search');
-    if ($('tcs-twitch-vod-label')) $('tcs-twitch-vod-label').textContent = twitchTr('label');
     if ($('tcs-twitch-vod-id')) $('tcs-twitch-vod-id').placeholder = twitchTr('placeholder');
     if ($('tcs-load-twitch')) $('tcs-load-twitch').textContent = twitchTr('load');
     $('tcs-search-clear').textContent = tr('clear');
@@ -249,7 +253,7 @@
     minBtn.title = collapsed ? tr('expandSettings') : tr('collapseSettings');
     minBtn.setAttribute('aria-label', minBtn.title);
     if (!STATE.comments.length) {
-      setStatus('statusChooseFile');
+      $('tcs-status').textContent = '';
       $('tcs-chat').innerHTML = `<div class="tcs-system">${tr('chooseChat')}</div>`;
     }
     if (STATE.searchResults.length) renderSearchResults();
@@ -280,8 +284,7 @@
           <button id="tcs-save-json" class="tcs-mini-btn" type="button" title="Write the current offset directly into the loaded JSON file">Save offset to JSON</button>
         </div>
         <div class="tcs-control-row tcs-twitch-row">
-          <label id="tcs-twitch-vod-label" class="tcs-twitch-label" for="tcs-twitch-vod-id">Twitch VOD ID</label>
-          <input id="tcs-twitch-vod-id" class="tcs-input" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="Enter Twitch VOD ID or URL">
+          <input id="tcs-twitch-vod-id" class="tcs-input" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="Enter Twitch VOD URL or ID">
           <button id="tcs-load-twitch" class="tcs-mini-btn" type="button">Load Twitch VOD</button>
         </div>
         <div class="tcs-control-row">
@@ -304,14 +307,16 @@
           <label class="tcs-check"><input id="tcs-show-timestamps" type="checkbox" checked><span id="tcs-show-timestamps-label">Show timestamps</span></label>
           <label class="tcs-check"><input id="tcs-purple-messages" type="checkbox" checked><span id="tcs-purple-messages-label">Separate messages</span></label>
           <label class="tcs-check"><input id="tcs-hide-scrollbar" type="checkbox"><span id="tcs-hide-scrollbar-label">Hide scrollbar</span></label>
+          <label class="tcs-check"><input id="tcs-hide-chat-frame" type="checkbox"><span id="tcs-hide-chat-frame-label">Hide chat frame</span></label>
         </div>
         <div class="tcs-control-row">
-          <div id="tcs-status">Choose a TwitchDownloader JSON chat file.</div>
+          <div id="tcs-status"></div>
           <div id="tcs-search-status"></div>
         </div>
       </div>
       <div id="tcs-search-results" hidden></div>
-      <div id="tcs-clean-drag-handle" role="button" tabindex="0" aria-label="Move chat" title="Move chat"></div>
+      <div id="tcs-settings-drag-handle" role="button" tabindex="0" aria-label="Move chat" title="Move chat"></div>
+      <button id="tcs-settings-toggle" class="tcs-settings-btn" type="button" aria-label="Expand settings" title="Expand settings">+</button>
       <div id="tcs-chat"><div class="tcs-system">Open a YouTube video and load a Twitch chat JSON file.</div></div>
       <div class="tcs-resize tcs-resize-r" data-edge="r"></div>
       <div class="tcs-resize tcs-resize-l" data-edge="l"></div>
@@ -321,8 +326,11 @@
       <div class="tcs-resize tcs-resize-tl" data-edge="tl"></div>
       <div class="tcs-resize tcs-resize-br" data-edge="br"></div>
       <div class="tcs-resize tcs-resize-bl" data-edge="bl"></div>`;
-    overlay.dataset.tcsVersion = '1.1.0';
+    overlay.dataset.tcsVersion = '1.13.0-settings-toggle';
     document.body.appendChild(overlay);
+
+    // Start expanded so the controls are immediately visible after page load/reload.
+    setSettingsCollapsed(false);
 
     $('tcs-clear').addEventListener('click', clearChat);
     $('tcs-save-json').addEventListener('click', saveOffsetToJson);
@@ -407,6 +415,9 @@
     $('tcs-hide-scrollbar').addEventListener('change', () => {
       setHideScrollbar($('tcs-hide-scrollbar').checked);
     });
+    $('tcs-hide-chat-frame').addEventListener('change', () => {
+      setHideChatFrame($('tcs-hide-chat-frame').checked);
+    });
     $('tcs-opacity').addEventListener('input', () => {
       const rawOpacity = Number($('tcs-opacity').value);
       STATE.opacity = Number.isFinite(rawOpacity) ? Math.max(0, Math.min(100, rawOpacity)) : 94;
@@ -439,21 +450,14 @@
     });
     $('tcs-min').addEventListener('click', () => {
       const overlay = $('tcs-overlay');
-      const controls = $('tcs-controls');
-      const results = $('tcs-search-results');
-      if (!overlay || !controls) return;
+      if (!overlay) return;
       const collapsed = !overlay.classList.contains('tcs-settings-collapsed');
-      overlay.classList.toggle('tcs-settings-collapsed', collapsed);
-      controls.hidden = collapsed;
-      if (results) results.hidden = collapsed || !STATE.searchResults.length;
-      const btn = $('tcs-min');
-      btn.textContent = collapsed ? '+' : '−';
-      btn.title = collapsed ? tr('expandSettings') : tr('collapseSettings');
-      btn.setAttribute('aria-label', btn.title);
+      setSettingsCollapsed(collapsed);
     });
+    $('tcs-settings-toggle').addEventListener('click', () => setSettingsCollapsed(false));
 
     makeDraggable(overlay, $('tcs-head'));
-    makeDraggable(overlay, $('tcs-clean-drag-handle'));
+    makeDraggable(overlay, $('tcs-settings-drag-handle'));
     makeResizable(overlay);
     loadPrefs();
     applyOpacity();
@@ -461,9 +465,29 @@
     loadLanguage();
     clampToViewport();
     loadChatVisibility();
-    loadCleanChat();
     loadPurpleMessages();
     loadHideScrollbar();
+  }
+
+  function setSettingsCollapsed(collapsed) {
+    const overlay = $('tcs-overlay');
+    const controls = $('tcs-controls');
+    const results = $('tcs-search-results');
+    const btn = $('tcs-min');
+    const hoverBtn = $('tcs-settings-toggle');
+    if (!overlay || !controls || !btn) return;
+
+    const isCollapsed = !!collapsed;
+    overlay.classList.toggle('tcs-settings-collapsed', isCollapsed);
+    controls.hidden = isCollapsed;
+    if (results) results.hidden = isCollapsed || !STATE.searchResults.length;
+    btn.textContent = isCollapsed ? '+' : '−';
+    btn.title = isCollapsed ? tr('expandSettings') : tr('collapseSettings');
+    btn.setAttribute('aria-label', btn.title);
+    if (hoverBtn) {
+      hoverBtn.title = tr('expandSettings');
+      hoverBtn.setAttribute('aria-label', hoverBtn.title);
+    }
   }
 
   function applyDisplayPrefs(rerender = false) {
@@ -473,10 +497,10 @@
     overlay.classList.toggle('tcs-purple-messages', STATE.purpleMessages);
     overlay.classList.toggle('tcs-hide-scrollbar', STATE.hideScrollbar);
     overlay.classList.toggle('tcs-no-box', STATE.hideChatFrame);
-    overlay.classList.toggle('tcs-clean', STATE.cleanChat);
     if ($('tcs-show-timestamps')) $('tcs-show-timestamps').checked = STATE.showTimestamps;
     if ($('tcs-purple-messages')) $('tcs-purple-messages').checked = STATE.purpleMessages;
     if ($('tcs-hide-scrollbar')) $('tcs-hide-scrollbar').checked = STATE.hideScrollbar;
+    if ($('tcs-hide-chat-frame')) $('tcs-hide-chat-frame').checked = STATE.hideChatFrame;
     if (rerender && STATE.comments.length) render(true);
   }
 
@@ -513,7 +537,8 @@
       if (Number.isFinite(saved.opacity)) STATE.opacity = Math.max(0, Math.min(100, saved.opacity));
       if (typeof saved.showTimestamps === 'boolean') STATE.showTimestamps = saved.showTimestamps;
 
-      const chromeSaved = await chrome.storage.local.get({offset: null, opacity: null, splitColor: null, showTimestamps: null, purpleMessages: null, hideScrollbar: null, hideChatFrame: null, cleanChat: null});
+      const chromeSaved = await chrome.storage.local.get({offset: null, opacity: null, splitColor: null, showTimestamps: null, purpleMessages: null, hideScrollbar: null, hideChatFrame: null});
+      chrome.storage.local.remove('cleanChat').catch(() => {});
       if (Number.isFinite(chromeSaved.offset)) STATE.offset = chromeSaved.offset;
       if (Number.isFinite(chromeSaved.opacity)) STATE.opacity = Math.max(0, Math.min(100, chromeSaved.opacity));
       else chrome.storage.local.set({opacity: STATE.opacity}).catch(() => {});
@@ -527,8 +552,6 @@
       else chrome.storage.local.set({hideScrollbar: STATE.hideScrollbar}).catch(() => {});
       if (typeof chromeSaved.hideChatFrame === 'boolean') STATE.hideChatFrame = chromeSaved.hideChatFrame;
       else chrome.storage.local.set({hideChatFrame: STATE.hideChatFrame}).catch(() => {});
-      if (typeof chromeSaved.cleanChat === 'boolean') STATE.cleanChat = chromeSaved.cleanChat;
-      else chrome.storage.local.set({cleanChat: STATE.cleanChat}).catch(() => {});
 
       if ($('tcs-offset')) $('tcs-offset').value = formatOffset(STATE.offset);
       if ($('tcs-opacity')) $('tcs-opacity').value = STATE.opacity;
@@ -572,17 +595,6 @@
     if (!overlay) return;
     const visible = STATE.chatVisible && isYouTubeVideoPage();
     overlay.classList.toggle('tcs-hidden', !visible);
-  }
-
-  async function loadCleanChat() {
-    try {
-      const saved = await chrome.storage.local.get({ cleanChat: false });
-      STATE.cleanChat = saved.cleanChat === true;
-      applyDisplayPrefs();
-    } catch {
-      STATE.cleanChat = false;
-      applyDisplayPrefs();
-    }
   }
 
   async function loadPurpleMessages() {
@@ -647,12 +659,6 @@
     STATE.hideScrollbar = !!enabled;
     applyDisplayPrefs();
     if (persist) chrome.storage.local.set({ hideScrollbar: STATE.hideScrollbar }).catch(() => {});
-  }
-
-  function setCleanChat(enabled, persist = true) {
-    STATE.cleanChat = !!enabled;
-    applyDisplayPrefs();
-    if (persist) chrome.storage.local.set({ cleanChat: STATE.cleanChat }).catch(() => {});
   }
 
   function savePrefs() {
@@ -2249,10 +2255,6 @@ function getSavedOffsetFromText(text) {
       STATE.chatVisible = changes.chatVisible.newValue !== false;
       applyChatVisibility();
     }
-    if (changes.cleanChat) {
-      STATE.cleanChat = changes.cleanChat.newValue === true;
-      applyDisplayPrefs();
-    }
     if (changes.showTimestamps) {
       STATE.showTimestamps = changes.showTimestamps.newValue !== false;
       applyDisplayPrefs(true);
@@ -2294,11 +2296,6 @@ function getSavedOffsetFromText(text) {
     if (msg?.action === 'hide') {
       setChatVisibility(false);
       sendResponse?.({ ok: true, visible: false });
-      return true;
-    }
-    if (msg?.action === 'set-clean-chat') {
-      setCleanChat(msg.enabled === true);
-      sendResponse?.({ ok: true, cleanChat: STATE.cleanChat });
       return true;
     }
     if (msg?.action === 'set-hide-chat-frame') {
@@ -2363,6 +2360,7 @@ function getSavedOffsetFromText(text) {
       savePrefs();
       chrome.storage.local.set({offset: STATE.offset}).catch(() => {});
       saveVideoSettings();
+      if (msg.showStatus === true) setStatus('offsetApplied');
       maybeFetchTwitchForOffsetChange();
       sendResponse?.({ ok: true, offset: STATE.offset });
       return true;
@@ -2412,17 +2410,9 @@ function getSavedOffsetFromText(text) {
     }
     if (msg?.action === 'toggle-settings') {
       const overlay = $('tcs-overlay');
-      const controls = $('tcs-controls');
-      const results = $('tcs-search-results');
-      if (overlay && controls) {
+      if (overlay) {
         const collapsed = !overlay.classList.contains('tcs-settings-collapsed');
-        overlay.classList.toggle('tcs-settings-collapsed', collapsed);
-        controls.hidden = collapsed;
-        if (results) results.hidden = collapsed || !STATE.searchResults.length;
-        const btn = $('tcs-min');
-        btn.textContent = collapsed ? '+' : '−';
-        btn.title = collapsed ? tr('expandSettings') : tr('collapseSettings');
-        btn.setAttribute('aria-label', btn.title);
+        setSettingsCollapsed(collapsed);
       }
       sendResponse?.({ ok: true });
       return true;
