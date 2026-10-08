@@ -68,6 +68,6 @@ See `PRIVACY.md` for more information.
 
 ## Current Version
 
-**1.13**
+**1.14**
 
 This is a casual project. Updates may be made occasionally when something needs fixing or stops working. All of this was done with the help of ChatGPT.
