@@ -234,6 +234,14 @@
     $('tcs-show-timestamps-label').textContent = tr('showTimestamps');
     $('tcs-settings-drag-handle').title = tr('moveChat');
     $('tcs-settings-drag-handle').setAttribute('aria-label', tr('moveChat'));
+    if ($('tcs-close')) {
+      $('tcs-close').title = tr('hideChat');
+      $('tcs-close').setAttribute('aria-label', tr('hideChat'));
+    }
+    if ($('tcs-collapsed-close')) {
+      $('tcs-collapsed-close').title = tr('hideChat');
+      $('tcs-collapsed-close').setAttribute('aria-label', tr('hideChat'));
+    }
     if ($('tcs-settings-toggle')) {
       $('tcs-settings-toggle').title = tr('expandSettings');
       $('tcs-settings-toggle').setAttribute('aria-label', tr('expandSettings'));
@@ -273,6 +281,7 @@
     overlay.id = 'tcs-overlay';
     overlay.innerHTML = `
       <div id="tcs-head">
+        <button id="tcs-close" class="tcs-head-btn tcs-close-btn" type="button" title="Hide chat" aria-label="Hide chat">×</button>
         <div id="tcs-title">Twitch VOD Chat for YouTube</div>
         <button id="tcs-min" class="tcs-head-btn" type="button" title="Collapse settings" aria-label="Collapse settings">−</button>
       </div>
@@ -315,8 +324,11 @@
         </div>
       </div>
       <div id="tcs-search-results" hidden></div>
-      <div id="tcs-settings-drag-handle" role="button" tabindex="0" aria-label="Move chat" title="Move chat"></div>
-      <button id="tcs-settings-toggle" class="tcs-settings-btn" type="button" aria-label="Expand settings" title="Expand settings">+</button>
+      <div id="tcs-collapsed-tools">
+        <button id="tcs-collapsed-close" class="tcs-collapsed-tool tcs-collapsed-close" type="button" aria-label="Hide chat" title="Hide chat">×</button>
+        <div id="tcs-settings-drag-handle" class="tcs-collapsed-tool" role="button" tabindex="0" aria-label="Move chat" title="Move chat"></div>
+        <button id="tcs-settings-toggle" class="tcs-settings-btn tcs-collapsed-tool" type="button" aria-label="Expand settings" title="Expand settings">+</button>
+      </div>
       <div id="tcs-chat"><div class="tcs-system">Open a YouTube video and load a Twitch chat JSON file.</div></div>
       <div class="tcs-resize tcs-resize-r" data-edge="r"></div>
       <div class="tcs-resize tcs-resize-l" data-edge="l"></div>
@@ -326,7 +338,7 @@
       <div class="tcs-resize tcs-resize-tl" data-edge="tl"></div>
       <div class="tcs-resize tcs-resize-br" data-edge="br"></div>
       <div class="tcs-resize tcs-resize-bl" data-edge="bl"></div>`;
-    overlay.dataset.tcsVersion = '1.13.0-settings-toggle';
+    overlay.dataset.tcsVersion = '1.14.0-close-scroll-centered-drag-hover-controls';
     document.body.appendChild(overlay);
 
     // Start expanded so the controls are immediately visible after page load/reload.
@@ -454,6 +466,8 @@
       const collapsed = !overlay.classList.contains('tcs-settings-collapsed');
       setSettingsCollapsed(collapsed);
     });
+    $('tcs-close').addEventListener('click', () => setChatVisibility(false));
+    $('tcs-collapsed-close').addEventListener('click', () => setChatVisibility(false));
     $('tcs-settings-toggle').addEventListener('click', () => setSettingsCollapsed(false));
 
     makeDraggable(overlay, $('tcs-head'));
@@ -2218,7 +2232,7 @@ function getSavedOffsetFromText(text) {
       if (edge.includes('b')) height += dy;
       if (edge.includes('t')) { height -= dy; top += dy; }
 
-      const minW = 300, minH = 300;
+      const minW = 220, minH = 180;
       const maxW = Math.min(900, Math.max(minW, window.innerWidth - 24));
       const maxH = Math.min(1400, Math.max(minH, window.innerHeight - 100));
       if (width < minW) { if (edge.includes('l')) left -= minW - width; width = minW; }
@@ -2239,8 +2253,8 @@ function getSavedOffsetFromText(text) {
     const box = $('tcs-overlay');
     if (!box) return;
     const r = box.getBoundingClientRect();
-    const w = Math.min(r.width, Math.max(300, window.innerWidth - 24));
-    const h = Math.min(r.height, Math.max(300, window.innerHeight - 100));
+    const w = Math.min(r.width, Math.max(220, window.innerWidth - 24));
+    const h = Math.min(r.height, Math.max(180, window.innerHeight - 100));
     box.style.width = w + 'px';
     box.style.height = h + 'px';
     box.style.left = Math.max(0, Math.min(window.innerWidth - w, r.left)) + 'px';

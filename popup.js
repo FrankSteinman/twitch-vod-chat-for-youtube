@@ -349,7 +349,7 @@ async function loadSettings() {
   const state = await sendToContent({action:'get-state'});
   if (state?.ok) {
     if (Number.isFinite(Number(state.offset))) setOffsetUI(Number(state.offset));
-    twitchInput.value = state.twitchVodInput || state.twitchVodId || '';
+    twitchInput.value = Object.prototype.hasOwnProperty.call(state, 'twitchVodInput') ? (state.twitchVodInput || '') : (state.twitchVodId || '');
     if (state.twitchMode && state.hasChat) {
       setFileState(true, state.chatFileName || '', true);
     } else if (state.hasChat) {
@@ -609,7 +609,7 @@ chrome.storage.onChanged?.addListener(async (changes, areaName) => {
   const state = await sendToContent({action:'get-state'});
   if (state?.ok) {
     if (Number.isFinite(Number(state.offset))) setOffsetUI(Number(state.offset));
-    document.getElementById('twitch-vod-id').value = state.twitchVodInput || state.twitchVodId || '';
+    document.getElementById('twitch-vod-id').value = Object.prototype.hasOwnProperty.call(state, 'twitchVodInput') ? (state.twitchVodInput || '') : (state.twitchVodId || '');
     if (state.twitchMode && state.hasChat) {
       setFileState(true, state.chatFileName || '', true);
     } else {
