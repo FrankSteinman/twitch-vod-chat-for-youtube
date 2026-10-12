@@ -31,7 +31,11 @@ A Chrome extension that allows you to display Twitch VOD chats on YouTube.
 
 ## Installation
 
-This extension is distributed as an unpacked Chrome extension.
+You can install the extension via the Chrome Web Store or as an unpacked Chrome extension.
+
+Chrome Web Store: https://chromewebstore.google.com/detail/afjaldhamjakpkngpoeobamiapkfogmk?utm_source=item-share-cb
+
+How to install as an unpacked extension: 
 
 1. Download the latest ZIP from the [**Releases**](https://github.com/FrankSteinman/twitch-vod-chat-for-youtube/releases) section.
 2. Extract the ZIP somewhere on your computer.
