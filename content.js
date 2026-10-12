@@ -338,7 +338,7 @@
       <div class="tcs-resize tcs-resize-tl" data-edge="tl"></div>
       <div class="tcs-resize tcs-resize-br" data-edge="br"></div>
       <div class="tcs-resize tcs-resize-bl" data-edge="bl"></div>`;
-    overlay.dataset.tcsVersion = '1.14.0-close-scroll-centered-drag-hover-controls';
+    overlay.dataset.tcsVersion = '1.15.0-outward-resize-hit-area';
     document.body.appendChild(overlay);
 
     // Start expanded so the controls are immediately visible after page load/reload.
@@ -2262,6 +2262,22 @@ function getSavedOffsetFromText(text) {
   }
 
   window.addEventListener('resize', clampToViewport);
+
+  // When settings are collapsed, reveal the top controls from a slightly wider
+  // hover zone outside the overlay. The existing inward hit area stays the same,
+  // and this does not add another element over the close/expand buttons.
+  window.addEventListener('mousemove', (e) => {
+    const overlay = $('tcs-overlay');
+    if (!overlay) return;
+    if (!overlay.classList.contains('tcs-settings-collapsed')) {
+      overlay.classList.remove('tcs-hover-edge');
+      return;
+    }
+    const r = overlay.getBoundingClientRect();
+    const inTopBand = e.clientY >= r.top - 8 && e.clientY <= r.top + 21;
+    const inHorizontalBand = e.clientX >= r.left - 8 && e.clientX <= r.right + 8;
+    overlay.classList.toggle('tcs-hover-edge', inTopBand && inHorizontalBand);
+  }, {passive: true});
 
   chrome.storage.onChanged?.addListener((changes, areaName) => {
     if (areaName !== 'local') return;

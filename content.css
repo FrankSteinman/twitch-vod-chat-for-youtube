@@ -3,7 +3,7 @@
   --tcs-panel-bg: rgba(24,24,27,var(--tcs-opacity));
   --tcs-control-bg: rgba(31,31,35,var(--tcs-opacity));
   position:fixed;z-index:2147483646;top:80px;right:18px;width:400px;min-width:220px;max-width:min(900px,calc(100vw - 24px));height:680px;min-height:180px;max-height:calc(100vh - 100px);
-  background:var(--tcs-panel-bg);color:#efeff1;border:0;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.55);font:14px/1.35 "Segoe UI",Arial,sans-serif;display:flex;flex-direction:column;overflow:hidden;
+  background:var(--tcs-panel-bg);color:#efeff1;border:0;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.55);font:14px/1.35 "Segoe UI",Arial,sans-serif;display:flex;flex-direction:column;overflow:visible;
 }
 #tcs-overlay.tcs-hidden{display:none}
 #tcs-overlay.tcs-no-box{box-shadow:none!important}
@@ -14,11 +14,12 @@
 #tcs-overlay.tcs-settings-collapsed #tcs-collapsed-tools{display:block;}
 #tcs-collapsed-tools .tcs-collapsed-tool{opacity:0;transition:opacity .12s ease;}
 #tcs-collapsed-tools:hover .tcs-collapsed-tool,#tcs-collapsed-tools:focus-within .tcs-collapsed-tool{opacity:1;}
+#tcs-overlay.tcs-hover-edge #tcs-collapsed-tools .tcs-collapsed-tool{opacity:1;}
 #tcs-settings-drag-handle{display:block;position:absolute;top:0;left:0;right:0;height:18px;margin:0;background:transparent;color:transparent;border-radius:4px;cursor:move;user-select:none;z-index:20;pointer-events:auto;}
 #tcs-settings-drag-handle::after{content:"⋮⋮";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) translateY(-1px);font-size:15px;letter-spacing:1px;line-height:1;color:#b9b9c1;background:rgba(55,55,61,.82);border-radius:4px;padding:1px 8px;opacity:1;transition:opacity .12s ease;}
 .tcs-settings-btn{display:block;position:absolute;top:0;right:9px;width:34px;height:20px;padding:0;border:0!important;border-radius:4px;background:rgba(55,55,61,.82)!important;color:#b9b9c1!important;font-size:18px!important;line-height:19px!important;cursor:pointer;z-index:21;}
 .tcs-collapsed-close{position:absolute;top:0;left:9px;width:34px;height:20px;padding:0;border:0!important;border-radius:4px;background:rgba(55,55,61,.82)!important;color:#b9b9c1!important;font-size:21px!important;line-height:18px!important;cursor:pointer;z-index:21;}
-#tcs-head{display:flex;align-items:center;gap:8px;padding:9px 10px;background:rgba(31,31,35,var(--tcs-opacity));border-bottom:1px solid rgba(255,255,255,.08);cursor:move;user-select:none;flex:0 0 auto}
+#tcs-head{display:flex;align-items:center;gap:8px;padding:9px 10px;background:rgba(31,31,35,var(--tcs-opacity));border-bottom:1px solid rgba(255,255,255,.08);border-radius:8px 8px 0 0;cursor:move;user-select:none;flex:0 0 auto}
 #tcs-title{font-weight:700;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tcs-close-btn{font-size:21px!important;line-height:18px!important;padding:1px 6px!important;}
 .tcs-head-btn{background:transparent!important;border:0!important;color:#c8c8d0!important;font-size:19px!important;line-height:1!important;padding:2px 6px!important;cursor:pointer}
@@ -53,7 +54,8 @@
 .tcs-step-btn:first-of-type{border-radius:4px 0 0 4px}
 .tcs-step-btn:last-of-type{border-left:0;border-radius:0 4px 4px 0}
 .tcs-step-btn:hover{background:#46464f}
-#tcs-chat{flex:1;min-height:0;overflow-y:auto;padding:8px 10px;scrollbar-width:thin;background:rgba(24,24,27,var(--tcs-opacity));}
+#tcs-chat{flex:1;min-height:0;overflow-y:auto;padding:8px 10px;scrollbar-width:thin;background:rgba(24,24,27,var(--tcs-opacity));border-radius:0 0 8px 8px;}
+#tcs-overlay.tcs-settings-collapsed #tcs-chat{border-radius:8px;}
 #tcs-overlay.tcs-hide-scrollbar #tcs-chat{scrollbar-width:none;}
 #tcs-overlay.tcs-hide-scrollbar #tcs-chat::-webkit-scrollbar{width:0;height:0;display:none;}
 .tcs-msg{margin:0 0 2px;padding:4px 5px;border-radius:3px;word-break:break-word;line-height:1.42;transition:none}
@@ -79,4 +81,11 @@
 .tcs-resize-tl{left:-3px;top:-3px;width:12px;height:12px;cursor:nw-resize}
 .tcs-resize-br{right:-3px;bottom:-3px;width:14px;height:14px;cursor:se-resize}
 .tcs-resize-bl{left:-3px;bottom:-3px;width:12px;height:12px;cursor:sw-resize}
+
+/* Keep the collapsed top resize hit areas outside the chat when possible.
+   The panel must allow overflow so these grips aren't clipped; the visible
+   chat/header layers retain their own rounded corners. */
+#tcs-overlay.tcs-settings-collapsed .tcs-resize-t{top:-7px;left:10px;right:10px;height:11px}
+#tcs-overlay.tcs-settings-collapsed .tcs-resize-tl{left:-4px;top:-4px;width:14px;height:14px}
+#tcs-overlay.tcs-settings-collapsed .tcs-resize-tr{right:-4px;top:-4px;width:14px;height:14px}
 mark.tcs-hit{background:#fff2a8;color:#101014;border-radius:2px;padding:0 1px}

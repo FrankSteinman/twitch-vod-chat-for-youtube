@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Twitch VOD Chat for YouTube",
-  "version": "1.14.0",
+  "version": "1.15.0",
   "description": "Display a Twitch VOD chat over YouTube with time sync, search, emotes, and appearance controls.",
   "permissions": [
     "storage"
